@@ -40,3 +40,6 @@ ai/data/
 # Poids YOLO téléchargés
 *.pt
 ai/cams/
+
+# Signatures faciales (données biométriques, jamais commitées)
+ai/faces/*.npy

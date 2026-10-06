@@ -18,6 +18,7 @@ import cv2
 from ultralytics import YOLO
 
 from common import Api, load_env
+from faces import FaceID
 
 PERSON = 0  # classe COCO "person"
 
@@ -154,6 +155,8 @@ def main() -> None:
     ap.add_argument("--show", action="store_true", help="fenêtre OpenCV locale")
     ap.add_argument("--no-buzzer", action="store_true", help="ne pas déclencher le buzzer sur intrusion")
     ap.add_argument("--no-api", action="store_true", help="test caméra seule, sans serveur")
+    ap.add_argument("--no-faces", action="store_true", help="désactiver la reconnaissance des personnes autorisées")
+    ap.add_argument("--grace", type=float, default=3.0, help="secondes laissées à une personne pour être reconnue avant l'alerte")
     args = ap.parse_args()
 
     env = load_env()
@@ -167,6 +170,13 @@ def main() -> None:
         args.camera = resolve_camera(env.get("VISION_CAMERA", "USB"))   # lancé sans terminal : automatique
     api = None if args.no_api else Api(env)
     model = YOLO(args.model)
+    faceid = None
+    if not args.no_faces:
+        try:
+            faceid = FaceID()
+            print(f"[vision] personnes autorisées : {', '.join(faceid.known) or 'aucune (ai/enroll.py --name ...)'}")
+        except FileNotFoundError as e:
+            print("[vision] reconnaissance désactivée :", e)
     cap = cv2.VideoCapture(args.camera)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -178,6 +188,9 @@ def main() -> None:
     print(f"[vision] flux MJPEG : http://localhost:{args.port}/stream  (Ctrl+C pour arrêter)")
 
     present = False          # une personne est dans le champ
+    unknown_since = None     # depuis quand une personne non reconnue est dans le champ
+    authorized = None        # nom de la personne autorisée reconnue (ou None)
+    last_known_at = 0.0
     last_seen = 0.0
     last_post = 0.0
     fps_t, fps_n, fps = time.time(), 0, 0.0
@@ -203,11 +216,55 @@ def main() -> None:
                 ly = y1 - 6 if y1 > 20 else y1 + 18          # étiquette sous le bord si le cadre touche le haut
                 cv2.putText(frame, f"personne {c:.0%}", (x1 + 2, ly), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 2)
 
+            # --- reconnaissance des personnes autorisées ---
+            if best and faceid is not None:
+                for face in faceid.faces(frame):
+                    x, y, w, h = (int(v) for v in face[:4])
+                    name, sim = faceid.identify(frame, face)
+                    if name:
+                        authorized, last_known_at = name, now
+                    color = (0, 200, 0) if name else (0, 165, 255)
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 1)
+                    cv2.putText(frame, f"{name} {sim:.2f}" if name else f"inconnu {sim:.2f}", (x, y + h + 14),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+            if authorized and now - last_known_at > 10.0:   # plus vu depuis 10 s : on oublie l'autorisation
+                authorized = None
+
+            if best and authorized:                        # personne autorisée : pas d'intrusion
+                last_seen = now
+                unknown_since = None
+                if present:
+                    present = False
+                    print(f"[vision] {authorized} reconnu : fin d'alerte")
+                    if api:
+                        try:
+                            api.post("/alerts", {"type": "intrusion", "state": "off", "value": 0, "severity": "info"})
+                            api.post("/commands", {"actuator": "camera", "action": "off"})
+                        except Exception as e:
+                            print("[vision] API :", e)
+                if api and now - last_post > 2.0:
+                    last_post = now
+                    try:
+                        api.post("/ai/detections", {"source": "yolov8n+sface", "label": f"autorise:{authorized}", "confidence": round(best[0], 3),
+                                                    "bbox": best[1], "frame_w": 640, "frame_h": 480})
+                    except Exception as e:
+                        print("[vision] API :", e)
+                best_for_alert = None
+            else:
+                best_for_alert = best
+                if best and faceid is not None and unknown_since is None:
+                    unknown_since = now                    # délai de grâce avant l'alerte
+            best = best_for_alert
+            if best and faceid is not None and not present and now - unknown_since < args.grace:
+                best = None                                # on attend encore une reconnaissance
+            if not best_for_alert:
+                unknown_since = None
+
             if best:
                 last_seen = now
                 if not present:
                     present = True
-                    print(f"[vision] INTRUSION détectée ({best[0]:.0%})")
+                    print(f"[vision] INTRUSION détectée ({best[0]:.0%}) : personne non reconnue")
                     if api:
                         try:
                             api.post("/alerts", {"type": "intrusion", "state": "on", "value": round(best[0], 2), "severity": "critical"})
@@ -236,7 +293,7 @@ def main() -> None:
             fps_n += 1
             if now - fps_t >= 1.0:
                 fps, fps_n, fps_t = fps_n / (now - fps_t), 0, now
-            status = "INTRUSION" if present else "zone libre"
+            status = "INTRUSION" if present else (f"autorise : {authorized}" if authorized else "zone libre")
             cv2.putText(frame, f"SENTINEL-X IA  {status}  {infer_ms:.0f} ms  {fps:.1f} fps", (8, 468),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255) if present else (0, 200, 0), 2)
             ok, jpg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
