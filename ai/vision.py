@@ -156,7 +156,7 @@ def main() -> None:
     ap.add_argument("--no-buzzer", action="store_true", help="ne pas déclencher le buzzer sur intrusion")
     ap.add_argument("--no-api", action="store_true", help="test caméra seule, sans serveur")
     ap.add_argument("--no-faces", action="store_true", help="désactiver la reconnaissance des personnes autorisées")
-    ap.add_argument("--grace", type=float, default=3.0, help="secondes laissées à une personne pour être reconnue avant l'alerte")
+    ap.add_argument("--grace", type=float, default=0.0, help="tolérance en secondes avant l'alerte pour laisser le temps d'une reconnaissance (0 = immédiat)")
     args = ap.parse_args()
 
     env = load_env()

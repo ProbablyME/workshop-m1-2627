@@ -34,8 +34,8 @@ c'est un risque de moins.
 
 ## Personnes autorisées (reconnaissance faciale)
 
-Une personne détectée par YOLO n'est une intrusion que si son visage n'est pas reconnu dans les
-3 secondes (`--grace`). Détection de visage YuNet + signature SFace, modèles OpenCV dans
+Une personne détectée par YOLO déclenche l'intrusion immédiatement, sauf si son visage est reconnu
+sur la même image (`--grace N` ajoute une tolérance de N secondes si besoin). Détection de visage YuNet + signature SFace, modèles OpenCV dans
 `ai/models/` (téléchargés automatiquement par le script de mise en place). Les signatures sont
 stockées dans `ai/faces/<nom>.npy`, **jamais commitées** : ce sont des données biométriques.
 
