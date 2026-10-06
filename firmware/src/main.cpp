@@ -129,40 +129,175 @@ static bool dhtFault() { return rd.dhtFails >= 3; }
 static bool dhtValid() { return !isnan(rd.temp) && !dhtFault(); }
 
 // ----------------------------------------------------------------------------- OLED
-static void oledLine(uint8_t row, const String& s) {
-  oled.setCursor(0, row * 10);
-  oled.print(s);
+// Interface en pages (128x64) : bandeau titre, pictogrammes, gros chiffres, jauge, courbe,
+// pagination en bas. Les pages défilent toutes les OLED_PAGE_MS ; une alerte prend l'écran et clignote.
+static const uint8_t ICON_THERMO[] PROGMEM = { 0x03,0xC0, 0x04,0x20, 0x05,0xA0, 0x05,0xA0, 0x05,0xA0, 0x05,0xA0, 0x05,0xA0, 0x05,0xA0, 0x05,0xA0, 0x09,0x90, 0x13,0xC8, 0x17,0xE8, 0x17,0xE8, 0x0B,0xD0, 0x04,0x20, 0x03,0xC0 };
+static const uint8_t ICON_DROP[] PROGMEM = { 0x01,0x00, 0x01,0x00, 0x03,0x80, 0x03,0x80, 0x07,0xC0, 0x07,0xC0, 0x0F,0xE0, 0x0F,0xE0, 0x1F,0xF0, 0x1F,0xF0, 0x1F,0xF0, 0x1E,0xF0, 0x0E,0xE0, 0x0F,0xE0, 0x07,0xC0, 0x03,0x80 };
+static const uint8_t ICON_FLAME[] PROGMEM = { 0x01,0x00, 0x03,0x00, 0x03,0x80, 0x07,0x80, 0x07,0xC0, 0x0F,0xC0, 0x0F,0xE0, 0x1F,0xE0, 0x1F,0xF0, 0x1E,0xF0, 0x3C,0x78, 0x3C,0x78, 0x3E,0xF8, 0x1F,0xF0, 0x0F,0xE0, 0x07,0xC0 };
+static const uint8_t ICON_PERSON[] PROGMEM = { 0x03,0xC0, 0x07,0xE0, 0x07,0xE0, 0x07,0xE0, 0x03,0xC0, 0x01,0x80, 0x0F,0xF0, 0x1F,0xF8, 0x3F,0xFC, 0x3B,0xDC, 0x3B,0xDC, 0x3B,0xDC, 0x03,0xC0, 0x03,0xC0, 0x07,0xE0, 0x07,0xE0 };
+static const uint8_t ICON_CAMERA[] PROGMEM = { 0x00,0x00, 0x07,0x80, 0x0F,0xC0, 0x7F,0xF0, 0x7F,0xFC, 0x60,0x0C, 0x67,0xCC, 0x6F,0xEC, 0x6C,0x6C, 0x6C,0x6C, 0x6F,0xEC, 0x67,0xCC, 0x60,0x0C, 0x7F,0xFC, 0x3F,0xF8, 0x00,0x00 };
+static const uint8_t ICON_SHIELD[] PROGMEM = { 0x01,0x80, 0x07,0xE0, 0x1F,0xF8, 0x3F,0xFC, 0x39,0x9C, 0x3B,0xDC, 0x3B,0xDC, 0x3B,0xDC, 0x38,0x1C, 0x3B,0xDC, 0x3F,0xFC, 0x1F,0xF8, 0x0F,0xF0, 0x07,0xE0, 0x03,0xC0, 0x01,0x80 };
+static const uint8_t ICON_WARN[] PROGMEM = { 0x01,0x80, 0x01,0x80, 0x03,0xC0, 0x03,0xC0, 0x06,0x60, 0x06,0x60, 0x0E,0x70, 0x0E,0x70, 0x1E,0x78, 0x1E,0x78, 0x3E,0x7C, 0x3F,0xFC, 0x7E,0x7E, 0x7E,0x7E, 0xFF,0xFF, 0x00,0x00 };
+
+#define OLED_PAGE_MS 7000
+#define TEMP_HIST_N 48
+float tempHist[TEMP_HIST_N];
+uint8_t tempHistN = 0, tempHistHead = 0;
+uint8_t oledPage = 0;
+unsigned long oledPageSince = 0;
+bool oledInverted = false;
+
+static void histPush(float v) {
+  tempHist[tempHistHead] = v;
+  tempHistHead = (tempHistHead + 1) % TEMP_HIST_N;
+  if (tempHistN < TEMP_HIST_N) tempHistN++;
+}
+
+static void drawHeader(const char* title) {
+  oled.fillRoundRect(0, 0, 128, 11, 2, SSD1306_WHITE);
+  oled.setTextSize(1);
+  oled.setTextColor(SSD1306_BLACK);
+  oled.setCursor(3, 2);
+  oled.print(title);
+  // Wi-Fi : 4 barres selon le RSSI
+  int bars = !WiFi.isConnected() ? 0 : (WiFi.RSSI() > -55 ? 4 : WiFi.RSSI() > -65 ? 3 : WiFi.RSSI() > -75 ? 2 : 1);
+  for (int i = 0; i < 4; i++) {
+    int h = 2 + i * 2, x = 104 + i * 3;
+    if (i < bars) oled.fillRect(x, 9 - h, 2, h, SSD1306_BLACK);
+    else oled.drawRect(x, 9 - h, 2, h, SSD1306_BLACK);
+  }
+  // MQTT : point plein si connecté, vide sinon
+  if (mqtt.connected()) oled.fillCircle(122, 5, 3, SSD1306_BLACK); else oled.drawCircle(122, 5, 3, SSD1306_BLACK);
+  oled.setTextColor(SSD1306_WHITE);
+}
+
+static void drawFooter(uint8_t n, uint8_t current) {
+  int x0 = 64 - (n * 6) / 2;
+  for (uint8_t i = 0; i < n; i++) {
+    if (i == current) oled.fillCircle(x0 + i * 6 + 2, 61, 2, SSD1306_WHITE);
+    else oled.drawPixel(x0 + i * 6 + 2, 61, SSD1306_WHITE);
+  }
+}
+
+static void bigValue(int x, int y, const String& v, const char* unit) {
+  oled.setTextSize(2); oled.setCursor(x, y); oled.print(v);
+  oled.setTextSize(1); oled.setCursor(x + v.length() * 12 + 2, y + 7); oled.print(unit);
+}
+
+static void pageStatus() {
+  drawHeader("SENTINEL-X");
+  oled.drawBitmap(4, 16, ICON_SHIELD, 16, 16, SSD1306_WHITE);
+  oled.setTextSize(2); oled.setCursor(26, 16); oled.print("SX-G1-01");
+  oled.setTextSize(1);
+  oled.setCursor(4, 36); oled.print(WiFi.isConnected() ? "IP " + WiFi.localIP().toString() : String("WiFi: connexion..."));
+  oled.setCursor(4, 47);
+  oled.print(mqtt.connected() ? (TLS_ENABLED ? "MQTT TLS OK" : "MQTT OK") : "MQTT: OFF");
+  oled.setCursor(86, 47); oled.print("fw "); oled.print(FW_VERSION);
+}
+
+static void pageClimate() {
+  drawHeader("CLIMAT");
+  oled.drawBitmap(2, 15, ICON_THERMO, 16, 16, SSD1306_WHITE);
+  oled.drawBitmap(77, 15, ICON_DROP, 16, 16, SSD1306_WHITE);
+  if (dhtValid()) {
+    bigValue(18, 16, String(rd.temp, 1), "C");
+    bigValue(95, 16, String((int)rd.hum), "%");
+  } else {
+    oled.setTextSize(1); oled.setCursor(18, 20); oled.print("--.-"); oled.setCursor(95, 20); oled.print("--");
+  }
+  // courbe de température des 4 dernières minutes
+  const int gx = 2, gy = 36, gw = 124, gh = 18;
+  oled.drawFastHLine(gx, gy + gh, gw, SSD1306_WHITE);
+  if (tempHistN >= 2) {
+    float lo = 1e9, hi = -1e9;
+    for (uint8_t i = 0; i < tempHistN; i++) { float v = tempHist[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+    if (hi - lo < 1.0f) { float c = (hi + lo) / 2; lo = c - 0.5f; hi = c + 0.5f; }
+    int px = -1, py = -1;
+    for (uint8_t i = 0; i < tempHistN; i++) {
+      uint8_t idx = (tempHistHead + TEMP_HIST_N - tempHistN + i) % TEMP_HIST_N;
+      int x = gx + (int)((long)i * (gw - 1) / (TEMP_HIST_N - 1));
+      int y = gy + gh - 1 - (int)((tempHist[idx] - lo) / (hi - lo) * (gh - 2));
+      if (px >= 0) oled.drawLine(px, py, x, y, SSD1306_WHITE);
+      px = x; py = y;
+    }
+    oled.fillCircle(px, py, 2, SSD1306_WHITE);
+  }
+}
+
+static void pageGas() {
+  drawHeader("GAZ / FUMEE");
+  oled.drawBitmap(2, 15, ICON_FLAME, 16, 16, SSD1306_WHITE);
+  bigValue(22, 16, String(rd.gasRaw), "raw");
+  oled.setTextSize(1); oled.setCursor(2, 36);
+  if (gasBase < 0) {
+    oled.print("chauffe du capteur...");
+  } else {
+    int delta = (int)(rd.gasRaw - gasBase);
+    oled.print("base "); oled.print((int)gasBase); oled.print("  ecart "); if (delta >= 0) oled.print("+"); oled.print(delta);
+    // jauge : 0 .. +GAS_DELTA_CRIT, repères attention / critique
+    const int bx = 2, by = 47, bw = 124, bh = 8;
+    oled.drawRect(bx, by, bw, bh, SSD1306_WHITE);
+    float frac = delta <= 0 ? 0 : (delta >= GAS_DELTA_CRIT ? 1.0f : (float)delta / GAS_DELTA_CRIT);
+    if (frac > 0) oled.fillRect(bx + 1, by + 1, (int)((bw - 2) * frac), bh - 2, SSD1306_WHITE);
+    int xw = bx + (int)((bw - 2) * (float)GAS_DELTA_WARN / GAS_DELTA_CRIT);
+    oled.drawFastVLine(xw, by - 2, bh + 4, SSD1306_WHITE);
+    oled.drawFastVLine(bx + bw - 1, by - 2, bh + 4, SSD1306_WHITE);
+  }
+}
+
+static void pageSecurity() {
+  drawHeader("SECURITE");
+  oled.drawBitmap(4, 15, ICON_PERSON, 16, 16, SSD1306_WHITE);
+  oled.setTextSize(1);
+  oled.setCursor(26, 16); oled.print("Mouvement PIR");
+  oled.setCursor(26, 25); oled.print(rd.motion ? "> PRESENCE" : "> zone libre");
+  oled.drawBitmap(4, 36, ICON_CAMERA, 16, 16, SSD1306_WHITE);
+  oled.setCursor(26, 37); oled.print("Camera IA");
+  oled.setCursor(26, 46); oled.print(al.camera ? "> INTRUSION" : "> zone libre");
+  oled.setCursor(96, 46); oled.print(melody.playing ? "SON" : "   ");
+}
+
+static void pageAlert() {
+  drawHeader("!! ALERTE !!");
+  oled.drawBitmap(4, 18, ICON_WARN, 16, 16, SSD1306_WHITE);
+  oled.setTextSize(2); oled.setCursor(26, 18);
+  if (al.camera && al.motion) oled.print("CAM+PIR");
+  else if (al.camera) oled.print("CAMERA");
+  else if (al.motion) oled.print("PIR");
+  else if (al.gas) oled.print(al.gasCrit ? "GAZ !!" : "GAZ");
+  else if (al.temp) oled.print("TEMP");
+  else if (al.hum) oled.print("HUMID.");
+  else oled.print("CAPTEUR");
+  oled.setTextSize(1); oled.setCursor(4, 40);
+  if (al.camera) oled.print("Intrus vu par camera");
+  else if (al.motion) oled.print("Mouvement detecte");
+  else if (al.gas) { oled.print("Gaz : "); oled.print(rd.gasRaw); oled.print(" (+"); oled.print((int)(rd.gasRaw - gasBase)); oled.print(")"); }
+  else if (al.temp) { oled.print("Temperature "); oled.print(rd.temp, 1); oled.print(" C"); }
+  else if (al.hum) { oled.print("Humidite "); oled.print((int)rd.hum); oled.print(" %"); }
+  else oled.print("DHT22 sans reponse");
+  oled.setCursor(4, 51); oled.print(melody.playing ? "Sirene active" : "Sirene terminee");
 }
 
 static void drawOled() {
   if (!oledOk) return;
+  unsigned long now = millis();
+  if (now - oledPageSince >= OLED_PAGE_MS) { oledPage = (oledPage + 1) % 4; oledPageSince = now; }
   oled.clearDisplay();
-  oled.setTextSize(1);
   oled.setTextColor(SSD1306_WHITE);
-  oledLine(0, String("SENTINEL-X ") + DEVICE_ID);
-#ifdef BENCH_NO_WIFI
-  oledLine(1, String("MODE BANC (sans WiFi)"));
-#else
-  oledLine(1, WiFi.isConnected() ? "IP " + WiFi.localIP().toString() : String("WiFi: connexion..."));
-#endif
-  oledLine(2, String("MQTT ") + (mqtt.connected() ? "OK" : "--") + (TLS_ENABLED ? " TLS " : " ") +
-                  String(WiFi.RSSI()) + "dBm");
-  oledLine(3, dhtValid() ? "T " + String(rd.temp, 1) + "C  H " + String(rd.hum, 0) + "%"
-                         : String("DHT22: pas de donnee"));
-  oledLine(4, "Gaz " + String(rd.gasRaw) + (gasBase < 0 ? " chauffe" : " +" + String((int)(rd.gasRaw - gasBase))) +
-                  "  PIR " + (rd.motion ? "!!" : "--"));
-  String st = "Statut: nominal";
   if (al.any()) {
-    st = "ALERTE";
-    if (al.camera && al.motion) st += " CAM+PIR";
-    else if (al.camera) st += " CAMERA";
-    else if (al.motion) st += " PIR";
-    if (al.gas) st += al.gasCrit ? " GAZ!" : " gaz";
-    if (al.temp) st += al.tempCrit ? " TEMP!" : " temp";
-    if (al.hum) st += " hum";
-    if (al.fault) st += " capteur";
+    pageAlert();
+    bool inv = (now / 500) % 2 == 0;             // clignotement par inversion matérielle
+    if (inv != oledInverted) { oled.invertDisplay(inv); oledInverted = inv; }
+  } else {
+    if (oledInverted) { oled.invertDisplay(false); oledInverted = false; }
+    switch (oledPage) {
+      case 0: pageStatus(); break;
+      case 1: pageClimate(); break;
+      case 2: pageGas(); break;
+      default: pageSecurity(); break;
+    }
+    drawFooter(4, oledPage);
   }
-  oledLine(5, st);
   oled.display();
 }
 
@@ -333,6 +468,8 @@ static void readSensors(unsigned long now) {
     if (rd.dhtFails < 255) rd.dhtFails++;
   } else {
     rd.temp = t; rd.hum = h; rd.dhtFails = 0;
+    static uint8_t histTick = 0;
+    if (++histTick >= 3) { histTick = 0; histPush(t); }   // un point toutes les ~6 s → 48 points ≈ 5 min
   }
 
   // Médiane de 8 lectures : l'ADC de l'ESP8266 glitche pendant les émissions Wi-Fi
@@ -412,10 +549,14 @@ void setup() {
     Serial.println("[oled] introuvable a 0x3C (verifier SDA=D2, SCL=D1, 3V, G)");
   } else {
     oled.clearDisplay();
+    oled.drawBitmap(56, 8, ICON_SHIELD, 16, 16, SSD1306_WHITE);
     oled.setTextSize(2);
     oled.setTextColor(SSD1306_WHITE);
-    oled.setCursor(4, 24);
+    oled.setCursor(4, 30);
     oled.print("SENTINEL-X");
+    oled.setTextSize(1);
+    oled.setCursor(22, 50);
+    oled.print("AetherCorp  Groupe 1");
     oled.display();
   }
 
