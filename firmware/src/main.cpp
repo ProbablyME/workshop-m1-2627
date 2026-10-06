@@ -75,15 +75,15 @@ struct Actuator {
 Actuator buzzer{PIN_BUZZER}, ledR{PIN_LED_RED}, ledG{PIN_LED_GREEN};
 unsigned long buzzerAutoUntil = 0;
 
-// ---- Mélodie d'alarme : Doom, "At Doom's Gate" (E1M1), riff en doubles-croches à 180 bpm ----
-// Transposé dans les aigus (1,3 à 2,6 kHz) : zone de résonance du piézo, donc volume maximal.
-#define N_BB6 1865
-#define N_B6  1976
-#define N_C7  2093
-#define N_D7  2349
-#define N_E6  1319
-#define N_E7  2637
-#define SX 83   // une double-croche à 180 bpm (ms)
+// ---- Mélodie d'alarme : Doom, "At Doom's Gate" (E1M1), riff en doubles-croches ----
+// Octaves 5-6 (659 à 1319 Hz), tempo ralenti à 120 bpm.
+#define N_BB6 932
+#define N_B6  988
+#define N_C7  1047
+#define N_D7  1175
+#define N_E6  659
+#define N_E7  1319
+#define SX 125  // une double-croche à 120 bpm (ms)
 static const uint16_t MELODY[] PROGMEM = {
   // mesure 1 : E E e E E d E E c E E B E E c d
   N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,

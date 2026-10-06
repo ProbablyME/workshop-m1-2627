@@ -49,8 +49,8 @@
 
 // ---- Actionneurs ----
 // Buzzer PASSIF (module 3 broches, signal sur D7) : le firmware joue une mélodie par PWM (tone()).
-// BUZZER_AUTO_MS = durée de la sirène automatique sur alerte ; le riff de Doom dure ≈ 5,3 s.
-#define BUZZER_AUTO_MS  5400
+// BUZZER_AUTO_MS = durée de la sirène automatique sur alerte ; le riff de Doom dure ≈ 8 s.
+#define BUZZER_AUTO_MS  8200
 #define BLINK_PERIOD_MS  200
 
 // ---- OLED ----
