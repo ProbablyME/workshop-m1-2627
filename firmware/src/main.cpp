@@ -75,27 +75,13 @@ struct Actuator {
 Actuator buzzer{PIN_BUZZER}, ledR{PIN_LED_RED}, ledG{PIN_LED_GREEN};
 unsigned long buzzerAutoUntil = 0;
 
-// ---- Mélodie d'alarme : Doom, "At Doom's Gate" (E1M1), riff en doubles-croches ----
-// Octaves 5-6 (659 à 1319 Hz), tempo ralenti à ≈ 94 bpm.
-#define N_BB6 932
-#define N_B6  988
-#define N_C7  1047
-#define N_D7  1175
-#define N_E6  659
-#define N_E7  1319
-#define SX 160  // une double-croche à ≈ 94 bpm (ms)
+// ---- Mélodie d'alarme : Doom E1M1 "At Doom's Gate", extraite du lump D_E1M1 de doom1.wad ----
+// Piste guitare (canal 0), 15 notes, 2.2 s, transposée de 3 octaves pour le buzzer.
+// Triplets (fréquence Hz, créneau ms, durée sonnée ms). MELODY_SPEED_PCT dans config.h ralentit/accélère.
 static const uint16_t MELODY[] PROGMEM = {
-  // Riff E1M1 (tablature corde de mi : 0-0-12 0-0-10 0-0-8 0-0-6 0-0-7-8), répété 4 fois
-  // soit : E E e | E E d | E E c | E E Bb | E E B c
-  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_C7, SX,
-  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_C7, SX,
-  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_C7, SX,
-  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_C7, SX };
-static const uint8_t MELODY_LEN = sizeof(MELODY) / sizeof(MELODY[0]) / 2;   // nombre de notes
+  659,136,43, 659,143,143, 1319,136,129, 659,136,43, 659,136,136, 1175,136,121, 659,136,43, 659,136,136,
+  1047,136,129, 659,136,43, 659,136,136, 932,136,136, 659,143,57, 659,136,136, 988,329,129 };
+static const uint8_t MELODY_LEN = sizeof(MELODY) / sizeof(MELODY[0]) / 3;   // nombre de notes
 
 struct Melody {
   bool playing = false;
@@ -118,10 +104,11 @@ static void melodyStart(unsigned long now) {
 static void melodyTick(unsigned long now) {
   if (!melody.playing || now < melody.nextAt) return;
   if (melody.idx >= MELODY_LEN) melody.idx = 0;
-  uint16_t f = pgm_read_word(&MELODY[melody.idx * 2]);
-  uint16_t dur = pgm_read_word(&MELODY[melody.idx * 2 + 1]);
-  if (f) tone(PIN_BUZZER, f, dur * 8 / 10); else noTone(PIN_BUZZER);   // 20 % de silence : attaque staccato
-  melody.nextAt = now + dur;
+  uint16_t f    = pgm_read_word(&MELODY[melody.idx * 3]);
+  uint32_t slot = (uint32_t)pgm_read_word(&MELODY[melody.idx * 3 + 1]) * MELODY_SPEED_PCT / 100;
+  uint32_t snd  = (uint32_t)pgm_read_word(&MELODY[melody.idx * 3 + 2]) * MELODY_SPEED_PCT / 100;
+  if (f) tone(PIN_BUZZER, f, snd); else noTone(PIN_BUZZER);
+  melody.nextAt = now + slot;
   melody.idx++;
 }
 
