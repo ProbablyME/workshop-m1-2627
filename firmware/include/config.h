@@ -48,7 +48,9 @@
 #define MQ2_CLEAN_AIR_RATIO 9.83f  // Rs/R0 en air propre (datasheet)
 
 // ---- Actionneurs ----
-#define BUZZER_AUTO_MS  3000       // sirène automatique sur alerte critique / intrusion
+// Buzzer PASSIF (module 3 broches, signal sur D7) : le firmware joue une mélodie par PWM (tone()).
+// BUZZER_AUTO_MS = durée de la sirène automatique sur alerte ; Hava Nagila dure ≈ 12 s.
+#define BUZZER_AUTO_MS  12200
 #define BLINK_PERIOD_MS  200
 
 // ---- OLED ----

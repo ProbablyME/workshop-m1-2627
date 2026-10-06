@@ -14,7 +14,7 @@ Tout sur l'USB, sans transistor ni pont diviseur ni bloc 7,5 V. Suffisant pour l
 | PIR       | OUT → D6, VCC → VU (5 V USB), GND → G                           |
 | MQ-2      | AO → A0, **VCC → 3V** (pas 5 V : sans diviseur, A0 reste sous 3,3 V), GND → G |
 | LED       | rouge → 220 Ω → D0, verte → 220 Ω → D8, cathode commune → G     |
-| Buzzer    | + → D7, − → G, en direct                                        |
+| Buzzer passif 3 broches | S (signal) → D7, VCC → VU (5 V, plus fort) ou 3V, GND → G. Broche du milieu sans nom : laisser libre. Le firmware joue une mélodie (thème Mario) par PWM |
 
 Courses : 13 câbles mâle/femelle, 4 mâle/mâle, 2 résistances 220 Ω. C'est tout.
 Le MQ-2 en 3,3 V est moins sensible mais réagit à un briquet non allumé ou à un coton d'alcool.

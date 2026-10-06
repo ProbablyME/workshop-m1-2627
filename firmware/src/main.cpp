@@ -75,6 +75,60 @@ struct Actuator {
 Actuator buzzer{PIN_BUZZER}, ledR{PIN_LED_RED}, ledG{PIN_LED_GREEN};
 unsigned long buzzerAutoUntil = 0;
 
+// ---- Mélodie d'alarme : Hava Nagila (fréquence Hz, durée ms ; 0 = silence) ----
+// Mode "freygish" sur mi : E F G# A B C D. Octave 5-6 : plus audible sur un piézo.
+#define N_E5 659
+#define N_F5 698
+#define N_GS5 831
+#define N_A5 880
+#define N_B5 988
+#define N_C6 1047
+#define N_D6 1175
+#define N_E6 1319
+static const uint16_t MELODY[] PROGMEM = {
+  // Hava nagila, hava nagila, hava nagila ve-nismecha
+  N_E5, 320, N_E5, 160, N_F5, 160, N_GS5, 320, N_A5, 320,
+  N_A5, 320, N_A5, 160, N_GS5, 160, N_A5, 320, N_B5, 320,
+  N_B5, 320, N_B5, 160, N_A5, 160, N_GS5, 320, N_A5, 320,
+  N_A5, 160, N_GS5, 160, N_F5, 320, N_E5, 640, 0, 160,
+  // Hava neranena, hava neranena, hava neranena ve-nismecha
+  N_E6, 320, N_E6, 160, N_D6, 160, N_C6, 320, N_B5, 320,
+  N_B5, 320, N_B5, 160, N_A5, 160, N_GS5, 320, N_A5, 320,
+  N_A5, 160, N_GS5, 160, N_F5, 320, N_E5, 640, 0, 160,
+  // Uru, uru achim, uru achim belev sameach
+  N_A5, 480, N_A5, 160, N_A5, 320, N_A5, 320, 0, 160,
+  N_A5, 160, N_A5, 160, N_B5, 160, N_C6, 160, N_B5, 320, N_A5, 320,
+  N_GS5, 160, N_F5, 160, N_E5, 640 };
+static const uint8_t MELODY_LEN = sizeof(MELODY) / sizeof(MELODY[0]) / 2;   // nombre de notes
+
+struct Melody {
+  bool playing = false;
+  uint8_t idx = 0;
+  unsigned long nextAt = 0;
+} melody;
+
+static void melodyStop() {
+  noTone(PIN_BUZZER);
+  melody.playing = false;
+}
+
+static void melodyStart(unsigned long now) {
+  melody.playing = true;
+  melody.idx = 0;
+  melody.nextAt = now;           // la première note part au prochain tick
+}
+
+// Avance la mélodie sans bloquer ; la rejoue en boucle tant qu'on ne l'arrête pas.
+static void melodyTick(unsigned long now) {
+  if (!melody.playing || now < melody.nextAt) return;
+  if (melody.idx >= MELODY_LEN) melody.idx = 0;
+  uint16_t f = pgm_read_word(&MELODY[melody.idx * 2]);
+  uint16_t dur = pgm_read_word(&MELODY[melody.idx * 2 + 1]);
+  if (f) tone(PIN_BUZZER, f, dur * 9 / 10); else noTone(PIN_BUZZER);   // 10 % de silence entre les notes
+  melody.nextAt = now + dur;
+  melody.idx++;
+}
+
 bool oledOk = false;
 float mq2R0 = 0;   // résistance du MQ-2 en air propre, calibrée après la chauffe
 float gasBase = -1;   // ligne de base du MQ-2 (valeur brute en air propre), fixée après la chauffe
@@ -137,7 +191,9 @@ static void tickActuators(unsigned long now) {
   if (!buzzer.manual) buzzer.level = now < buzzerAutoUntil;
   if (!ledR.manual) ledR.level = al.any() || !online;
   if (!ledG.manual) ledG.level = online && !al.any();
-  digitalWrite(buzzer.pin, buzzer.level ? HIGH : LOW);
+  if (buzzer.level && !melody.playing) melodyStart(now);     // alarme : mélodie (en boucle tant que demandée)
+  if (!buzzer.level && melody.playing) melodyStop();
+  melodyTick(now);
   digitalWrite(ledR.pin, ledR.level ? HIGH : LOW);
   digitalWrite(ledG.pin, ledG.level ? HIGH : LOW);
 }
@@ -154,7 +210,7 @@ static void applyCommand(Actuator& a, const char* action, unsigned long duration
   a.lastToggle = now;
   a.level = true;
   a.blink = !strcmp(action, "blink");
-  if (!strcmp(action, "pulse"))  a.until = now + (duration ? duration : 1000);
+  if (!strcmp(action, "pulse"))  a.until = now + (duration ? duration : (&a == &buzzer ? BUZZER_AUTO_MS : 1000));
   else if (a.blink)              a.until = now + (duration ? duration : 3000);
   else                           a.until = duration ? now + duration : 0;   // "on"
 }

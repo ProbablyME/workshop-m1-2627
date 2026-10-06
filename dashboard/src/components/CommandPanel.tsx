@@ -44,8 +44,8 @@ export function CommandPanel({ commands }: { commands: Command[] }) {
     {
       name: "Buzzer",
       buttons: [
-        { label: "Sirène 3 s", body: { actuator: "buzzer", action: "pulse", duration_ms: 3000 }, kind: "danger" },
-        { label: "Marche", body: { actuator: "buzzer", action: "on" } },
+        { label: "Alarme Mario", body: { actuator: "buzzer", action: "pulse" }, kind: "danger" },
+        { label: "En boucle", body: { actuator: "buzzer", action: "on" } },
         { label: "Silence", body: { actuator: "buzzer", action: "off" } },
       ],
     },
