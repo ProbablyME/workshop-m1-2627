@@ -164,6 +164,7 @@ def main() -> None:
     ap.add_argument("--no-buzzer", action="store_true", help="ne pas déclencher le buzzer sur intrusion")
     ap.add_argument("--no-api", action="store_true", help="test caméra seule, sans serveur")
     ap.add_argument("--no-faces", action="store_true", help="désactiver la reconnaissance des personnes autorisées")
+    ap.add_argument("--confirm", type=int, default=3, help="images consécutives avec un intrus avant l'alerte (3 ≈ 0,3 s)")
     args = ap.parse_args()
 
     env = load_env()
@@ -197,6 +198,7 @@ def main() -> None:
     present = False          # un intrus (personne non reconnue) est dans le champ
     auth_memory = []         # [(boîte, nom, t)] silhouettes reconnues récemment
     last_auth_post = 0.0
+    intruder_frames = 0      # images consécutives avec un intrus non reconnu
     last_seen = 0.0
     last_post = 0.0
     fps_t, fps_n, fps = time.time(), 0, 0.0
@@ -246,6 +248,9 @@ def main() -> None:
                 cv2.putText(frame, f"{name} {conf:.0%}" if name else f"personne {conf:.0%}", (x1 + 2, ly),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
             best = max(intruders, key=lambda pr: pr[0]) if intruders else None   # intrus le plus sûr
+            intruder_frames = intruder_frames + 1 if best else 0
+            if best and not present and intruder_frames < args.confirm:
+                best = None                                                    # confirmation sur quelques images
             if api and authorized_now and now - last_auth_post > 2.0:
                 last_auth_post = now
                 try:
