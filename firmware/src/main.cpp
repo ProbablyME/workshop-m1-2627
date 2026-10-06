@@ -52,6 +52,7 @@ struct Readings {
   int gasRaw = 0;
   float gasPpm = 0;
   bool motion = false;
+  bool pirSeenLow = false;       // le PIR a été vu au niveau bas au moins une fois : capteur réellement branché
 } rd;
 
 struct Alerts {
@@ -250,7 +251,7 @@ static void pageSecurity() {
   oled.drawBitmap(4, 15, ICON_PERSON, 16, 16, SSD1306_WHITE);
   oled.setTextSize(1);
   oled.setCursor(26, 16); oled.print("Mouvement PIR");
-  oled.setCursor(26, 25); oled.print(rd.motion ? "> PRESENCE" : "> zone libre");
+  oled.setCursor(26, 25); oled.print(!rd.pirSeenLow ? "> non branche" : rd.motion ? "> PRESENCE" : "> zone libre");
   oled.drawBitmap(4, 36, ICON_CAMERA, 16, 16, SSD1306_WHITE);
   oled.setCursor(26, 37); oled.print("Camera IA");
   oled.setCursor(26, 46); oled.print(al.camera ? "> INTRUSION" : "> zone libre");
@@ -493,7 +494,10 @@ static void readSensors(unsigned long now) {
     rd.gasPpm = ppm < 0 ? 0 : (ppm > 10000 ? 10000 : ppm);          // borné : l'estimation n'a de sens qu'en ordre de grandeur
   }
 
-  rd.motion = digitalRead(PIN_PIR) == HIGH;
+  // Une broche en l'air se lit au niveau haut : on ne croit le PIR qu'après l'avoir vu bas une fois.
+  bool pirHigh = digitalRead(PIN_PIR) == HIGH;
+  if (!pirHigh) rd.pirSeenLow = true;
+  rd.motion = rd.pirSeenLow && pirHigh;
 }
 
 // Seuils avec hystérésis : on publie à l'entrée, à l'escalade (warning → critical) et à la sortie.
