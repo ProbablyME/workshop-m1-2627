@@ -50,7 +50,7 @@
 // ---- Actionneurs ----
 // Buzzer PASSIF (module 3 broches, signal sur D7) : le firmware joue une mélodie par PWM (tone()).
 // BUZZER_AUTO_MS = durée de la sirène automatique sur alerte (≈ la mélodie à 100 %).
-#define BUZZER_AUTO_MS  2447
+#define BUZZER_AUTO_MS  10991
 #define MELODY_SPEED_PCT 100   // 100 = tempo du jeu ; 150 = une fois et demie plus lent
 #define BLINK_PERIOD_MS  200
 
