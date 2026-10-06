@@ -9,6 +9,7 @@ Quand une personne apparaît : POST /ai/detections (toutes les 2 s tant qu'elle 
 POST /alerts type=intrusion state=on, et commande buzzer. Quand elle disparaît 5 s : state=off.
 """
 import argparse
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -79,6 +80,48 @@ def resolve_camera(spec: str) -> int:
     return 0
 
 
+def probe_cameras(max_index: int = 5) -> list[tuple[int, str, str]]:
+    """(index, nom, résolution) pour chaque caméra qu'OpenCV arrive à ouvrir."""
+    names = camera_names()
+    found = []
+    for i in range(max_index):
+        cap = cv2.VideoCapture(i)
+        if not cap.isOpened():
+            cap.release(); continue
+        ok, _ = cap.read()
+        w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        cap.release()
+        if ok:
+            found.append((i, names[i] if i < len(names) else f"caméra {i}", f"{w}x{h}"))
+    return found
+
+
+def choose_camera(default_spec: str) -> int:
+    """Affiche les caméras détectées et demande laquelle utiliser (Entrée = choix par défaut)."""
+    cams = probe_cameras()
+    if not cams:
+        raise SystemExit("aucune caméra détectée (autoriser l'accès caméra dans Réglages Système)")
+    default = cams[0][0]
+    if default_spec.strip().lstrip("-").isdigit():
+        if int(default_spec) in [c[0] for c in cams]: default = int(default_spec)
+    else:
+        for i, n, _ in cams:
+            if default_spec.lower() in n.lower(): default = i; break
+    print("\nCaméras détectées :")
+    for i, n, res in cams:
+        print(f"  [{i}] {n:<28} {res}{'   (défaut)' if i == default else ''}")
+    while True:
+        try:
+            raw = input(f"Caméra à utiliser [{default}] : ").strip()
+        except EOFError:
+            return default
+        if raw == "":
+            return default
+        if raw.isdigit() and int(raw) in [c[0] for c in cams]:
+            return int(raw)
+        print("  → entrer un des numéros entre crochets")
+
+
 def list_cameras() -> None:
     """Ouvre les index 0 à 4, enregistre une vignette de chacun dans ai/cams/ pour les identifier."""
     import os
@@ -103,7 +146,7 @@ def list_cameras() -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--camera", default=None, help="index ou morceau du nom de la webcam (défaut : VISION_CAMERA du .env, ex. USB)")
+    ap.add_argument("--camera", default=None, help="index ou morceau du nom de la webcam ; sans cette option, le script liste les caméras et demande laquelle utiliser")
     ap.add_argument("--list", action="store_true", help="liste les caméras disponibles avec une vignette dans ai/cams/")
     ap.add_argument("--model", default="yolov8n.pt", help="poids YOLO (téléchargés au premier lancement)")
     ap.add_argument("--conf", type=float, default=0.5)
@@ -116,7 +159,12 @@ def main() -> None:
     env = load_env()
     if args.list:
         list_cameras(); return
-    args.camera = resolve_camera(args.camera if args.camera is not None else env.get("VISION_CAMERA", "0"))
+    if args.camera is not None:
+        args.camera = resolve_camera(args.camera)                       # --camera : pas de question
+    elif sys.stdin.isatty():
+        args.camera = choose_camera(env.get("VISION_CAMERA", "USB"))    # terminal : liste + choix
+    else:
+        args.camera = resolve_camera(env.get("VISION_CAMERA", "USB"))   # lancé sans terminal : automatique
     api = None if args.no_api else Api(env)
     model = YOLO(args.model)
     cap = cv2.VideoCapture(args.camera)
