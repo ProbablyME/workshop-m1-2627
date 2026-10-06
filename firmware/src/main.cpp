@@ -75,28 +75,25 @@ struct Actuator {
 Actuator buzzer{PIN_BUZZER}, ledR{PIN_LED_RED}, ledG{PIN_LED_GREEN};
 unsigned long buzzerAutoUntil = 0;
 
-// ---- Mélodie d'alarme : Doom, "At Doom's Gate" (E1M1), riff en doubles-croches ----
-// Octaves 5-6 (659 à 1319 Hz), tempo ralenti à ≈ 94 bpm.
-#define N_BB6 932
-#define N_B6  988
-#define N_C7  1047
-#define N_D7  1175
-#define N_E6  659
-#define N_E7  1319
-#define SX 160  // une double-croche à ≈ 94 bpm (ms)
+// ---- Mélodie d'alarme : thème de Super Mario Bros (fréquence Hz, durée ms ; 0 = silence) ----
+// Octaves 5-6, tempo d'origine (125 ms la double-croche).
+#define N_E5  659
+#define N_G5  784
+#define N_A5  880
+#define N_AS5 932
+#define N_B5  988
+#define N_C6  1047
+#define N_D6  1175
+#define N_E6  1319
+#define N_F6  1397
+#define N_G6  1568
+#define N_A6  1760
+#define Q 125   // double-croche
+#define T 167   // triolet
 static const uint16_t MELODY[] PROGMEM = {
-  // mesure 1 : E E e E E d E E c E E B E E c d
-  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_C7, SX, N_D7, SX,
-  // mesure 2 : idem
-  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_C7, SX, N_D7, SX,
-  // mesure 3 : idem
-  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_C7, SX, N_D7, SX,
-  // mesure 4 : E E e E E d E E c E E B E E Bb B (montée chromatique)
-  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_B6, SX };
+  N_E6, Q, N_E6, Q, 0, Q, N_E6, Q, 0, Q, N_C6, Q, N_E6, Q, 0, Q, N_G6, Q, 0, Q, 0, Q, 0, Q, N_G5, Q, 0, Q, 0, Q, 0, Q,
+  N_C6, Q, 0, Q, 0, Q, N_G5, Q, 0, Q, 0, Q, N_E5, Q, 0, Q, 0, Q, N_A5, Q, 0, Q, N_B5, Q, 0, Q, N_AS5, Q, N_A5, Q, 0, Q,
+  N_G5, T, N_E6, T, N_G6, T, N_A6, Q, 0, Q, N_F6, Q, N_G6, Q, 0, Q, N_E6, Q, 0, Q, N_C6, Q, N_D6, Q, N_B5, Q, 0, Q, 0, Q };
 static const uint8_t MELODY_LEN = sizeof(MELODY) / sizeof(MELODY[0]) / 2;   // nombre de notes
 
 struct Melody {
