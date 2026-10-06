@@ -85,18 +85,16 @@ unsigned long buzzerAutoUntil = 0;
 #define N_E7  1319
 #define SX 160  // une double-croche à ≈ 94 bpm (ms)
 static const uint16_t MELODY[] PROGMEM = {
-  // mesure 1 : E E e E E d E E c E E B E E c d
+  // Riff E1M1 (tablature corde de mi : 0-0-12 0-0-10 0-0-8 0-0-6 0-0-7-8), répété 4 fois
+  // soit : E E e | E E d | E E c | E E Bb | E E B c
   N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_C7, SX, N_D7, SX,
-  // mesure 2 : idem
+  N_C7, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_C7, SX,
   N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_C7, SX, N_D7, SX,
-  // mesure 3 : idem
+  N_C7, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_C7, SX,
   N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_C7, SX, N_D7, SX,
-  // mesure 4 : E E e E E d E E c E E B E E Bb B (montée chromatique)
+  N_C7, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_C7, SX,
   N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
-  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_B6, SX };
+  N_C7, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_C7, SX };
 static const uint8_t MELODY_LEN = sizeof(MELODY) / sizeof(MELODY[0]) / 2;   // nombre de notes
 
 struct Melody {
