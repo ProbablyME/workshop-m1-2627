@@ -75,30 +75,28 @@ struct Actuator {
 Actuator buzzer{PIN_BUZZER}, ledR{PIN_LED_RED}, ledG{PIN_LED_GREEN};
 unsigned long buzzerAutoUntil = 0;
 
-// ---- Mélodie d'alarme : Hava Nagila (fréquence Hz, durée ms ; 0 = silence) ----
-// Mode "freygish" sur mi : E F G# A B C D. Octave 5-6 : plus audible sur un piézo.
-#define N_E5 659
-#define N_F5 698
-#define N_GS5 831
-#define N_A5 880
-#define N_B5 988
-#define N_C6 1047
-#define N_D6 1175
-#define N_E6 1319
+// ---- Mélodie d'alarme : Doom, "At Doom's Gate" (E1M1), riff en doubles-croches à 180 bpm ----
+// Transposé dans les aigus (1,3 à 2,6 kHz) : zone de résonance du piézo, donc volume maximal.
+#define N_BB6 1865
+#define N_B6  1976
+#define N_C7  2093
+#define N_D7  2349
+#define N_E6  1319
+#define N_E7  2637
+#define SX 83   // une double-croche à 180 bpm (ms)
 static const uint16_t MELODY[] PROGMEM = {
-  // Hava nagila, hava nagila, hava nagila ve-nismecha
-  N_E5, 320, N_E5, 160, N_F5, 160, N_GS5, 320, N_A5, 320,
-  N_A5, 320, N_A5, 160, N_GS5, 160, N_A5, 320, N_B5, 320,
-  N_B5, 320, N_B5, 160, N_A5, 160, N_GS5, 320, N_A5, 320,
-  N_A5, 160, N_GS5, 160, N_F5, 320, N_E5, 640, 0, 160,
-  // Hava neranena, hava neranena, hava neranena ve-nismecha
-  N_E6, 320, N_E6, 160, N_D6, 160, N_C6, 320, N_B5, 320,
-  N_B5, 320, N_B5, 160, N_A5, 160, N_GS5, 320, N_A5, 320,
-  N_A5, 160, N_GS5, 160, N_F5, 320, N_E5, 640, 0, 160,
-  // Uru, uru achim, uru achim belev sameach
-  N_A5, 480, N_A5, 160, N_A5, 320, N_A5, 320, 0, 160,
-  N_A5, 160, N_A5, 160, N_B5, 160, N_C6, 160, N_B5, 320, N_A5, 320,
-  N_GS5, 160, N_F5, 160, N_E5, 640 };
+  // mesure 1 : E E e E E d E E c E E B E E c d
+  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
+  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_C7, SX, N_D7, SX,
+  // mesure 2 : idem
+  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
+  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_C7, SX, N_D7, SX,
+  // mesure 3 : idem
+  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
+  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_C7, SX, N_D7, SX,
+  // mesure 4 : E E e E E d E E c E E B E E Bb B (montée chromatique)
+  N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
+  N_C7, SX, N_E6, SX, N_E6, SX, N_B6, SX, N_E6, SX, N_E6, SX, N_BB6, SX, N_B6, SX };
 static const uint8_t MELODY_LEN = sizeof(MELODY) / sizeof(MELODY[0]) / 2;   // nombre de notes
 
 struct Melody {
@@ -124,7 +122,7 @@ static void melodyTick(unsigned long now) {
   if (melody.idx >= MELODY_LEN) melody.idx = 0;
   uint16_t f = pgm_read_word(&MELODY[melody.idx * 2]);
   uint16_t dur = pgm_read_word(&MELODY[melody.idx * 2 + 1]);
-  if (f) tone(PIN_BUZZER, f, dur * 9 / 10); else noTone(PIN_BUZZER);   // 10 % de silence entre les notes
+  if (f) tone(PIN_BUZZER, f, dur * 8 / 10); else noTone(PIN_BUZZER);   // 20 % de silence : attaque staccato
   melody.nextAt = now + dur;
   melody.idx++;
 }
