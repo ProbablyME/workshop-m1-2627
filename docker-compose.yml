@@ -1,0 +1,94 @@
+# Stack serveur Sentinel-X (option B : tourne sur le laptop "PC Serveur Local")
+# Lancement : docker compose up -d --build
+
+name: sentinel-x
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: sx-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT clair, réservé au dev / debug sur la table
+      - "8883:8883"   # MQTTS (TLS), utilisé par l'ESP8266 en production
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/mosquitto/passwd:/mosquitto/config/passwd:ro
+      - ./infra/mosquitto/certs:/mosquitto/certs:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -p 1883 -u \"$$MQTT_USER\" -P \"$$MQTT_PASSWORD\" -t healthcheck -m ok >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    environment:
+      MQTT_USER: ${MQTT_USER}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+    networks:
+      - sx-net
+
+  db:
+    image: postgres:16-alpine
+    container_name: sx-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sx-net
+    # Pas de port exposé : seule l'API y accède, via le réseau Docker interne.
+
+  api:
+    build: ./backend
+    container_name: sx-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883          # interne au réseau Docker ; l'ESP passe par 8883
+    ports:
+      - "${API_PORT:-8000}:8000"   # port hôte configurable dans .env
+    depends_on:
+      db:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    networks:
+      - sx-net
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        VITE_VIDEO_URL: ${VIDEO_URL:-http://localhost:8001/stream}
+    container_name: sx-dashboard
+    restart: unless-stopped
+    environment:
+      API_KEY: ${API_KEY}          # injectée par nginx dans les requêtes proxifiées, jamais côté navigateur
+    volumes:
+      - ./infra/nginx/htpasswd:/etc/nginx/htpasswd:ro
+    ports:
+      - "${DASHBOARD_PORT:-8080}:80"
+    depends_on:
+      - api
+    networks:
+      - sx-net
+
+volumes:
+  pgdata:
+  mosquitto-data:
+  mosquitto-log:
+
+networks:
+  sx-net:
+    driver: bridge

@@ -1,0 +1,42 @@
+# Secrets et fichiers générés : ne jamais commiter
+.env
+infra/mosquitto/passwd
+infra/nginx/htpasswd
+infra/mosquitto/certs/*
+!infra/mosquitto/certs/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node / React
+node_modules/
+dashboard/dist/
+dashboard/.vite/
+
+# PlatformIO
+firmware/.pio/
+firmware/include/secrets.h
+
+# IA
+ai/models/*.pt
+ai/models/*.onnx
+ai/models/*.pkl
+ai/data/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Caches TypeScript
+*.tsbuildinfo
+
+# Poids YOLO téléchargés
+*.pt
+ai/cams/
