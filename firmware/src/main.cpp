@@ -76,14 +76,14 @@ Actuator buzzer{PIN_BUZZER}, ledR{PIN_LED_RED}, ledG{PIN_LED_GREEN};
 unsigned long buzzerAutoUntil = 0;
 
 // ---- Mélodie d'alarme : Doom, "At Doom's Gate" (E1M1), riff en doubles-croches ----
-// Octaves 5-6 (659 à 1319 Hz), tempo ralenti à 120 bpm.
+// Octaves 5-6 (659 à 1319 Hz), tempo ralenti à ≈ 94 bpm.
 #define N_BB6 932
 #define N_B6  988
 #define N_C7  1047
 #define N_D7  1175
 #define N_E6  659
 #define N_E7  1319
-#define SX 125  // une double-croche à 120 bpm (ms)
+#define SX 160  // une double-croche à ≈ 94 bpm (ms)
 static const uint16_t MELODY[] PROGMEM = {
   // mesure 1 : E E e E E d E E c E E B E E c d
   N_E6, SX, N_E6, SX, N_E7, SX, N_E6, SX, N_E6, SX, N_D7, SX, N_E6, SX, N_E6, SX,
