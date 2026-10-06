@@ -34,8 +34,9 @@ c'est un risque de moins.
 
 ## Personnes autorisées (reconnaissance faciale)
 
-Une personne détectée par YOLO déclenche l'intrusion immédiatement, sauf si son visage est reconnu
-sur la même image (`--grace N` ajoute une tolérance de N secondes si besoin). Détection de visage YuNet + signature SFace, modèles OpenCV dans
+Chaque personne détectée par YOLO est évaluée séparément : autorisée si un visage reconnu se trouve
+dans son cadre (ou l'était il y a moins de 2 s au même endroit), intruse sinon, immédiatement.
+Un inconnu à côté d'une personne autorisée déclenche donc l'alerte. Détection de visage YuNet + signature SFace, modèles OpenCV dans
 `ai/models/` (téléchargés automatiquement par le script de mise en place). Les signatures sont
 stockées dans `ai/faces/<nom>.npy`, **jamais commitées** : ce sont des données biométriques.
 
@@ -47,5 +48,5 @@ stockées dans `ai/faces/<nom>.npy`, **jamais commitées** : ce sont des donnée
 .venv/bin/python vision.py --no-faces        # mode « toute personne = intrusion »
 ```
 
-Sur l'image annotée : cadre vert et nom pour une personne reconnue (similarité ≥ 0,36), cadre
-orange « inconnu » sinon. Une personne reconnue qui sort du champ reste « autorisée » 10 s.
+Sur l'image annotée : silhouette et nom en vert pour une personne autorisée, silhouette rouge
+« personne » pour un intrus ; le visage est cadré en vert (reconnu, similarité ≥ 0,36) ou orange (inconnu).

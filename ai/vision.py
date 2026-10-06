@@ -21,6 +21,14 @@ from common import Api, load_env
 from faces import FaceID
 
 PERSON = 0  # classe COCO "person"
+AUTH_MEMORY_S = 2.0   # une silhouette reconnue reste autorisée ce temps-là si son visage n'est plus visible
+
+
+def iou(a, b):
+    ix1, iy1, ix2, iy2 = max(a[0], b[0]), max(a[1], b[1]), min(a[2], b[2]), min(a[3], b[3])
+    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+    ua = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / ua if ua > 0 else 0.0
 
 
 class Stream:
@@ -156,7 +164,6 @@ def main() -> None:
     ap.add_argument("--no-buzzer", action="store_true", help="ne pas déclencher le buzzer sur intrusion")
     ap.add_argument("--no-api", action="store_true", help="test caméra seule, sans serveur")
     ap.add_argument("--no-faces", action="store_true", help="désactiver la reconnaissance des personnes autorisées")
-    ap.add_argument("--grace", type=float, default=0.0, help="tolérance en secondes avant l'alerte pour laisser le temps d'une reconnaissance (0 = immédiat)")
     args = ap.parse_args()
 
     env = load_env()
@@ -187,10 +194,9 @@ def main() -> None:
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     print(f"[vision] flux MJPEG : http://localhost:{args.port}/stream  (Ctrl+C pour arrêter)")
 
-    present = False          # une personne est dans le champ
-    unknown_since = None     # depuis quand une personne non reconnue est dans le champ
-    authorized = None        # nom de la personne autorisée reconnue (ou None)
-    last_known_at = 0.0
+    present = False          # un intrus (personne non reconnue) est dans le champ
+    auth_memory = []         # [(boîte, nom, t)] silhouettes reconnues récemment
+    last_auth_post = 0.0
     last_seen = 0.0
     last_post = 0.0
     fps_t, fps_n, fps = time.time(), 0, 0.0
@@ -203,62 +209,51 @@ def main() -> None:
             t0 = time.time()
             res = model.predict(frame, imgsz=640, conf=args.conf, classes=[PERSON], verbose=False)[0]
             infer_ms = (time.time() - t0) * 1000
-            boxes = res.boxes
             now = time.time()
-            best = None
-            for b in boxes:
-                c = float(b.conf[0])
-                if best is None or c > best[0]:
-                    x1, y1, x2, y2 = (int(v) for v in b.xyxy[0])
-                    best = (c, [x1, y1, x2, y2])
-                cv2.rectangle(frame, (int(b.xyxy[0][0]), int(b.xyxy[0][1])), (int(b.xyxy[0][2]), int(b.xyxy[0][3])), (0, 0, 255), 2)
-                x1, y1 = int(b.xyxy[0][0]), int(b.xyxy[0][1])
-                ly = y1 - 6 if y1 > 20 else y1 + 18          # étiquette sous le bord si le cadre touche le haut
-                cv2.putText(frame, f"personne {c:.0%}", (x1 + 2, ly), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 2)
-
-            # --- reconnaissance des personnes autorisées ---
-            if best and faceid is not None:
+            # --- personnes détectées par YOLO ---
+            persons = []
+            for b in res.boxes:
+                x1, y1, x2, y2 = (int(v) for v in b.xyxy[0])
+                persons.append([float(b.conf[0]), [x1, y1, x2, y2], None])   # [confiance, boîte, nom autorisé]
+            # --- visages reconnus, rattachés à la silhouette qui les contient ---
+            if persons and faceid is not None:
                 for face in faceid.faces(frame):
-                    x, y, w, h = (int(v) for v in face[:4])
+                    fx, fy, fw, fh = (int(v) for v in face[:4])
                     name, sim = faceid.identify(frame, face)
-                    if name:
-                        authorized, last_known_at = name, now
+                    cx, cy = fx + fw // 2, fy + fh // 2
+                    for pr in persons:
+                        x1, y1, x2, y2 = pr[1]
+                        if x1 <= cx <= x2 and y1 <= cy <= y2 and name:
+                            pr[2] = name
+                            auth_memory.append((pr[1], name, now))
                     color = (0, 200, 0) if name else (0, 165, 255)
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 1)
-                    cv2.putText(frame, f"{name} {sim:.2f}" if name else f"inconnu {sim:.2f}", (x, y + h + 14),
+                    cv2.rectangle(frame, (fx, fy), (fx + fw, fy + fh), color, 1)
+                    cv2.putText(frame, f"{name} {sim:.2f}" if name else f"inconnu {sim:.2f}", (fx, fy + fh + 14),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-            if authorized and now - last_known_at > 10.0:   # plus vu depuis 10 s : on oublie l'autorisation
-                authorized = None
-
-            if best and authorized:                        # personne autorisée : pas d'intrusion
-                last_seen = now
-                unknown_since = None
-                if present:
-                    present = False
-                    print(f"[vision] {authorized} reconnu : fin d'alerte")
-                    if api:
-                        try:
-                            api.post("/alerts", {"type": "intrusion", "state": "off", "value": 0, "severity": "info"})
-                            api.post("/commands", {"actuator": "camera", "action": "off"})
-                        except Exception as e:
-                            print("[vision] API :", e)
-                if api and now - last_post > 2.0:
-                    last_post = now
-                    try:
-                        api.post("/ai/detections", {"source": "yolov8n+sface", "label": f"autorise:{authorized}", "confidence": round(best[0], 3),
-                                                    "bbox": best[1], "frame_w": 640, "frame_h": 480})
-                    except Exception as e:
-                        print("[vision] API :", e)
-                best_for_alert = None
-            else:
-                best_for_alert = best
-                if best and faceid is not None and unknown_since is None:
-                    unknown_since = now                    # délai de grâce avant l'alerte
-            best = best_for_alert
-            if best and faceid is not None and not present and now - unknown_since < args.grace:
-                best = None                                # on attend encore une reconnaissance
-            if not best_for_alert:
-                unknown_since = None
+                # mémoire courte : une silhouette reconnue il y a < AUTH_MEMORY_S au même endroit reste autorisée
+                auth_memory[:] = [m for m in auth_memory if now - m[2] < AUTH_MEMORY_S]
+                for pr in persons:
+                    if pr[2] is None:
+                        for box, name, _ in auth_memory:
+                            if iou(box, pr[1]) > 0.5:
+                                pr[2] = name; break
+            intruders = [pr for pr in persons if pr[2] is None]
+            authorized_now = sorted({pr[2] for pr in persons if pr[2]})
+            for conf, (x1, y1, x2, y2), name in persons:
+                color = (0, 200, 0) if name else (0, 0, 255)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                ly = y1 - 6 if y1 > 20 else y1 + 18
+                cv2.putText(frame, f"{name} {conf:.0%}" if name else f"personne {conf:.0%}", (x1 + 2, ly),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+            best = max(intruders, key=lambda pr: pr[0]) if intruders else None   # intrus le plus sûr
+            if api and authorized_now and now - last_auth_post > 2.0:
+                last_auth_post = now
+                try:
+                    pr = max((pr for pr in persons if pr[2]), key=lambda pr: pr[0])
+                    api.post("/ai/detections", {"source": "yolov8n+sface", "label": f"autorise:{pr[2]}", "confidence": round(pr[0], 3),
+                                                "bbox": pr[1], "frame_w": 640, "frame_h": 480})
+                except Exception as e:
+                    print("[vision] API :", e)
 
             if best:
                 last_seen = now
@@ -293,7 +288,7 @@ def main() -> None:
             fps_n += 1
             if now - fps_t >= 1.0:
                 fps, fps_n, fps_t = fps_n / (now - fps_t), 0, now
-            status = "INTRUSION" if present else (f"autorise : {authorized}" if authorized else "zone libre")
+            status = "INTRUSION" if present else (f"autorise : {', '.join(authorized_now)}" if authorized_now else "zone libre")
             cv2.putText(frame, f"SENTINEL-X IA  {status}  {infer_ms:.0f} ms  {fps:.1f} fps", (8, 468),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255) if present else (0, 200, 0), 2)
             ok, jpg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
