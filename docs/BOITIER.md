@@ -22,6 +22,8 @@ de sécurité, numéro de série). L'impression 3D est longue : lancer la base d
 
 ## 2. Architecture proposée : 3 pièces
 
+Modèle généré par `fablab/boitier.py` (CadQuery → STEP/STL, voir `fablab/README.md`), à importer et finaliser dans Fusion 360.
+
 1. **Base** (le plus long à imprimer, à lancer en premier) : bac avec 4 plots à vis pour le pack
    myDiL, logements DC-DC et Wago, ouverture micro-USB latérale, passe-câble d'alimentation,
    pieds et chanfreins 45° pour imprimer sans support.
