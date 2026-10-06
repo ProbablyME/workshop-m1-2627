@@ -1,0 +1,6 @@
+ultralytics>=8.3,<9
+opencv-python>=4.10,<5
+scikit-learn>=1.5,<2
+numpy>=1.26,<3
+requests>=2.32,<3
+pyobjc-framework-AVFoundation>=10; sys_platform == "darwin"
