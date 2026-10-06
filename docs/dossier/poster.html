@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>SENTINEL-X — Poster A3</title>
+<link rel="stylesheet" href="style.css">
+<style>
+@page { size: A3 landscape; margin: 12mm; }
+html { font-size: 11pt; }
+body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+.poster { height: 272mm; display: grid; grid-template-rows: auto 1fr auto; gap: 6mm; }
+.head { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0b2a4a; padding-bottom: 4mm; }
+.head img { height: 18mm; }
+.head h1 { page-break-before: auto; border: 0; margin: 0; font-size: 34pt; }
+.head .sub { color: #2a78d6; font-size: 14pt; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+.grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 6mm; }
+.card { border: 1px solid #c9cdd3; border-radius: 4px; padding: 5mm; }
+.card h2 { margin: 0 0 3mm; font-size: 15pt; color: #0b2a4a; border-bottom: 1px solid #c9cdd3; padding-bottom: 2mm; }
+.card ul { padding-left: 5mm; margin: 0; }
+.card li { margin-bottom: 1.5mm; }
+.big { font-size: 30pt; font-weight: 700; color: #0b2a4a; line-height: 1; }
+.big small { display: block; font-size: 10pt; color: #555; font-weight: 400; margin-top: 1.5mm; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 4mm; }
+.foot { border-top: 1px solid #c9cdd3; padding-top: 3mm; font-size: 10pt; color: #555; display: flex; justify-content: space-between; }
+.shot { width: 100%; border: 1px solid #c9cdd3; border-radius: 3px; margin-top: 3mm; }
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="head">
+    <div><div class="sub">Workshop national Bac+4 · EPSI · Octobre 2026 · Consortium Groupe 1</div><h1>SENTINEL-X — L'avant-poste industriel du futur</h1></div>
+    <div><img src="img/logo-epsi.png" alt="EPSI" style="margin-right:8mm"><img src="img/logo-mydil.png" alt="myDiL"></div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h2>Le boîtier et son réseau</h2>
+      <ul>
+        <li>ESP8266 + DHT22, MQ-2, PIR, OLED, buzzer mélodique, LED bicolore, imprimé en 3D au Fablab.</li>
+        <li>Télémétrie toutes les 5 s en <b>MQTT sur TLS 1.3</b>, certificat épinglé, broker authentifié.</li>
+        <li>Alertes réflexe avec hystérésis ; gaz par ligne de base auto-calibrée.</li>
+        <li>Commandes descendantes : alarme, LED, intrusion caméra.</li>
+        <li>Réseau de table isolé 192.168.10.0/24, serveur = laptop (option B).</li>
+      </ul>
+      <img class="shot" src="img/plaque.png" alt="Plaque gravée">
+    </div>
+    <div class="card">
+      <h2>Le serveur</h2>
+      <ul>
+        <li>Docker Compose : Mosquitto, PostgreSQL, API FastAPI, nginx.</li>
+        <li>API REST + WebSocket, validation stricte, clé sur toutes les écritures.</li>
+        <li>Base non exposée, conteneurs sans root, secrets générés, zéro secret dans Git.</li>
+        <li>Dashboard React : courbes temps réel, journal, commandes, IA.</li>
+      </ul>
+      <div class="stats">
+        <div class="big">5 s<small>période de télémétrie</small></div>
+        <div class="big">6<small>tables PostgreSQL</small></div>
+        <div class="big">401<small>sans clé ou mot de passe</small></div>
+        <div class="big">&lt; 1 s<small>du capteur à l'écran</small></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>L'intelligence embarquée</h2>
+      <ul>
+        <li><b>Vision</b> : YOLOv8n sur webcam USB, classe personne, alerte d'intrusion, flux annoté dans le dashboard.</li>
+        <li><b>Prédictif</b> : Isolation Forest sur fenêtres de 5 min, pentes et corrélation température / gaz, ré-entraîné toutes les 30 min.</li>
+        <li>Aucune condition statique : le modèle apprend la normale et signale ce qui s'en écarte.</li>
+      </ul>
+      <div class="stats">
+        <div class="big">33 ms<small>par trame 640×480</small></div>
+        <div class="big">91 %<small>confiance typique</small></div>
+        <div class="big">7<small>caractéristiques cinétiques</small></div>
+        <div class="big">30 s<small>entre deux scores</small></div>
+      </div>
+      <img class="shot" src="img/vision.jpg" alt="Détection">
+    </div>
+    <div class="card">
+      <h2>La sécurité</h2>
+      <ul>
+        <li>Chiffrement de bout en bout ESP → broker : TLS 1.3, AES-256-GCM, RSA 2048.</li>
+        <li>Broker : anonyme refusé, comptes, limites de connexions et de messages.</li>
+        <li>API : clé injectée par le proxy, jamais dans le navigateur ; payloads validés.</li>
+        <li>Dashboard : authentification, en-têtes anti-clickjacking.</li>
+        <li>Jeudi : port 1883 fermé, durcissement de l'hôte, pentest croisé et rapport d'audit.</li>
+      </ul>
+      <img class="shot" src="img/dashboard.png" alt="Dashboard">
+    </div>
+  </div>
+  <div class="foot"><span>AetherCorp Industrial Solutions · Prototype SENTINEL-X · S/N SX-G1-01</span><span>« Sentinel-X : la sécurité à la bordure. »</span></div>
+</div>
+</body>
+</html>

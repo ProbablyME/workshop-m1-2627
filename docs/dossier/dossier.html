@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Workshop2026-M1-G1 — Dossier d'ingénierie technique SENTINEL-X</title>
+<link rel="stylesheet" href="style.css">
+<style>
+@page { @bottom-left { content: "SENTINEL-X · Consortium Groupe 1 · Dossier d'ingénierie technique"; font-size: 8pt; color: #666; }
+        @bottom-right { content: "Page " counter(page) " / " counter(pages); font-size: 8pt; color: #666; } }
+</style>
+</head>
+<body>
+
+<!-- ===================== PAGE DE GARDE ===================== -->
+<section class="cover">
+  <div class="logos"><img src="img/logo-epsi.png" alt="EPSI"><img src="img/logo-mydil.png" alt="myDiL"></div>
+  <div class="title">
+    <div class="kicker">Workshop national Bac+4 · Sprint d'ingénierie · Octobre 2026</div>
+    <h1>SENTINEL-X</h1>
+    <div class="sub">Dossier d'ingénierie technique — L'avant-poste industriel du futur</div>
+    <p class="small" style="margin-top:8mm">AetherCorp Industrial Solutions · Prototype cyber-physique de surveillance autonome</p>
+  </div>
+  <div class="meta">
+    <div><b>Consortium</b><br>Groupe 1 — EPSI Montpellier</div>
+    <div><b>Variante d'architecture</b><br>Option B : PC Serveur Local = ordinateur portable d'un apprenant</div>
+    <div><b>Membres</b><br><span class="todo">À compléter : Prénom NOM (DEV), Prénom NOM (IA), Prénom NOM (INFRA), Prénom NOM (CYBER)</span></div>
+    <div><b>Version</b><br>1.0 — mardi 6 octobre 2026 · rapport d'audit à intégrer jeudi 8 octobre</div>
+    <div><b>Dépôt de code</b><br><code>Workshop2026-M1-G1-Code.zip</code> — README exhaustif, aucun secret en clair</div>
+    <div><b>Livrables associés</b><br><code>Workshop2026-M1-G1-Pres.pptx</code> · <code>Workshop2026-M1-G1-VidDrop.mp4</code></div>
+  </div>
+</section>
+
+<!-- ===================== SOMMAIRE ===================== -->
+<h1><span class="num">0</span>Sommaire</h1>
+<div class="toc"><ol>
+  <li>Contexte, périmètre et état du prototype</li>
+  <li>Architecture générale</li>
+  <li>Réseau : topologie et plan d'adressage</li>
+  <li>Électronique : composants et schéma de câblage</li>
+  <li>Firmware ESP8266</li>
+  <li>Serveur : conteneurs, API, base de données</li>
+  <li>Dashboard de supervision</li>
+  <li>Intelligence artificielle locale</li>
+  <li>Sécurité : matrice, chiffrement, durcissement</li>
+  <li>Rapport d'audit post-pentest</li>
+  <li>Exploitation et maintien en condition opérationnelle</li>
+  <li>Fabrication numérique (Fablab)</li>
+  <li>Annexe — Index du dépôt</li>
+</ol>
+<p class="small">Le poster A3 (paysage) est inséré en dernière page du document.</p></div>
+
+<!-- ===================== 1. CONTEXTE ===================== -->
+<h1><span class="num">1</span>Contexte, périmètre et état du prototype</h1>
+<p>AetherCorp déploie des micro-centrales isolées exposées à trois menaces simultanées : cyberattaques,
+intrusions physiques et risques environnementaux (fuites de gaz, surchauffes). SENTINEL-X est un boîtier
+de surveillance autonome (<i>Edge Node</i>) relié sans fil et de manière chiffrée à un Centre de
+Commandement Tactique matérialisé par le PC Serveur Local.</p>
+<p>Le consortium a retenu l'<b>option B</b> : aucun Raspberry Pi, le serveur est l'ordinateur portable
+d'un apprenant qui héberge la pile Docker, l'API, le dashboard et les deux scripts d'intelligence
+artificielle, la webcam USB étant branchée directement dessus.</p>
+
+<h2>1.1 Les quatre piliers du sujet et leur couverture</h2>
+<table>
+<tr><th style="width:24%">Pilier</th><th>Exigence du cahier des charges</th><th style="width:16%">État</th></tr>
+<tr><td>Edge Computing &amp; IoT</td><td>Firmware C++ unique sur ESP8266, lecture cadencée des capteurs, OLED I2C, payloads structurés, actionneurs pilotables à distance</td><td class="status-ok">Réalisé et validé sur matériel</td></tr>
+<tr><td>IA locale</td><td>Détection de présence humaine en temps réel sur webcam (&lt; 100 ms / trame) ; maintenance prédictive sur séries temporelles sans simples conditions statiques</td><td class="status-ok">Réalisé (33–45 ms / trame, Isolation Forest)</td></tr>
+<tr><td>Infrastructure &amp; centralisation</td><td>Stack conteneurisée Docker Compose (base, API, broker MQTT), point d'accès Wi-Fi de table, plan d'adressage isolé</td><td class="status-ok">Stack réalisée · <span class="status-todo">AP de table à déployer mardi</span></td></tr>
+<tr><td>Cybersécurité</td><td>TLS de bout en bout ESP → serveur, durcissement du serveur, audit offensif croisé jeudi</td><td class="status-ok">MQTTS réalisé · <span class="status-todo">durcissement hôte et audit jeudi</span></td></tr>
+</table>
+
+<h2>1.2 Chiffres clés mesurés</h2>
+<div class="kpis">
+  <div class="kpi"><b>5 s</b><span>période de télémétrie, 12 mesures/min reçues en base</span></div>
+  <div class="kpi"><b>TLS 1.3</b><span>ESP → broker, AES-256-GCM, certificat épinglé</span></div>
+  <div class="kpi"><b>33 ms</b><span>inférence YOLOv8n par trame 640×480 sur le laptop</span></div>
+  <div class="kpi"><b>17,6 Ko</b><span>mémoire libre sur l'ESP8266, session TLS ouverte</span></div>
+  <div class="kpi"><b>6</b><span>composants validés un par un sur le boîtier</span></div>
+</div>
+
+<h2>1.3 Ce qui a été produit</h2>
+<ul>
+  <li><b>Firmware</b> ESP8266 (C++/PlatformIO) : 3 capteurs, OLED, buzzer mélodique, LED bicolore, MQTTS, commandes, mode banc d'essai.</li>
+  <li><b>Serveur</b> : Mosquitto (TLS), PostgreSQL, API FastAPI (REST + WebSocket), nginx, scripts de bootstrap, certificats, base.</li>
+  <li><b>Dashboard</b> React : indicateurs, courbes temps réel, journal d'alertes, panneau de commande, panneau IA avec flux vidéo.</li>
+  <li><b>IA</b> : vision YOLOv8n sur webcam USB avec alerte d'intrusion ; maintenance prédictive par Isolation Forest.</li>
+  <li><b>Documentation</b> : contrat de données, architecture, câblage, boîtier, base de données, ce dossier, plaque laser.</li>
+</ul>
+
+<!-- ===================== 2. ARCHITECTURE ===================== -->
+<h1><span class="num">2</span>Architecture générale</h1>
+<figure>
+<svg viewBox="0 0 760 330" width="100%" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2a78d6"/></marker>
+    <marker id="ahr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#d03b3b"/></marker>
+  </defs>
+  <!-- Boîtier -->
+  <rect class="zone" x="8" y="14" width="262" height="300" rx="6"/>
+  <text class="lbl-b" x="18" y="32">Boîtier SENTINEL-X (impression 3D)</text>
+  <rect class="box" x="98" y="130" width="92" height="64" rx="4"/>
+  <text class="lbl-b" x="144" y="156" text-anchor="middle">ESP8266</text>
+  <text class="lbl-s" x="144" y="170" text-anchor="middle">NodeMCU Lolin v3</text>
+  <text class="lbl-s" x="144" y="183" text-anchor="middle">firmware C++</text>
+  <g>
+    <rect class="box-soft" x="16" y="60" width="70" height="28" rx="3"/><text class="lbl" x="51" y="78" text-anchor="middle">DHT22</text>
+    <rect class="box-soft" x="16" y="110" width="70" height="28" rx="3"/><text class="lbl" x="51" y="128" text-anchor="middle">MQ-2</text>
+    <rect class="box-soft" x="16" y="160" width="70" height="28" rx="3"/><text class="lbl" x="51" y="178" text-anchor="middle">PIR</text>
+    <path class="arrow" d="M86,74 L98,140"/><path class="arrow" d="M86,124 L98,150"/><path class="arrow" d="M86,174 L98,164"/>
+    <rect class="box-soft" x="196" y="60" width="66" height="28" rx="3"/><text class="lbl" x="229" y="78" text-anchor="middle">OLED</text>
+    <rect class="box-soft" x="196" y="110" width="66" height="28" rx="3"/><text class="lbl" x="229" y="128" text-anchor="middle">Buzzer</text>
+    <rect class="box-soft" x="196" y="160" width="66" height="28" rx="3"/><text class="lbl" x="229" y="178" text-anchor="middle">LED R/V</text>
+    <path class="arrow" d="M190,140 L196,80"/><path class="arrow" d="M190,150 L196,126"/><path class="arrow" d="M190,164 L196,172"/>
+  </g>
+  <text class="lbl-s" x="18" y="256">Capteurs : température, humidité, gaz, présence</text>
+  <text class="lbl-s" x="18" y="270">Alimentation : USB 5 V (dev) · bloc 7,5 V (démo)</text>
+  <text class="lbl-s" x="18" y="284">Seuils locaux « réflexe » + ligne de base gaz</text>
+  <text class="lbl-s" x="18" y="298">Wi-Fi 2,4 GHz · MQTT sur TLS 1.3</text>
+  <!-- Serveur -->
+  <rect class="zone" x="296" y="14" width="456" height="300" rx="6"/>
+  <text class="lbl-b" x="306" y="32">PC Serveur Local — laptop (option B)</text>
+  <rect class="zone" x="306" y="44" width="300" height="190" rx="4" style="stroke-dasharray:2 2"/>
+  <text class="lbl-s" x="314" y="58">Docker Compose (réseau interne isolé)</text>
+  <rect class="box" x="318" y="72" width="100" height="40" rx="4"/><text class="lbl-b" x="368" y="89" text-anchor="middle">Mosquitto</text><text class="lbl-s" x="368" y="103" text-anchor="middle">8883 TLS · 1883 local</text>
+  <rect class="box" x="450" y="72" width="100" height="40" rx="4"/><text class="lbl-b" x="500" y="89" text-anchor="middle">API FastAPI</text><text class="lbl-s" x="500" y="103" text-anchor="middle">REST + WebSocket</text>
+  <rect class="box" x="318" y="160" width="100" height="40" rx="4"/><text class="lbl-b" x="368" y="177" text-anchor="middle">PostgreSQL</text><text class="lbl-s" x="368" y="191" text-anchor="middle">6 tables, non exposée</text>
+  <rect class="box" x="450" y="160" width="100" height="40" rx="4"/><text class="lbl-b" x="500" y="177" text-anchor="middle">nginx</text><text class="lbl-s" x="500" y="191" text-anchor="middle">dashboard React</text>
+  <path class="arrow" d="M418,92 L450,92"/><text class="lbl-s" x="434" y="86" text-anchor="middle">sub</text>
+  <path class="arrow" d="M450,180 L418,180"/>
+  <path class="arrow" d="M480,112 L400,160"/><text class="lbl-s" x="455" y="140" text-anchor="middle">SQL</text>
+  <path class="arrow" d="M500,112 L500,160"/><text class="lbl-s" x="512" y="138">proxy</text>
+  <!-- hors docker -->
+  <rect class="box-soft" x="626" y="72" width="116" height="40" rx="4"/><text class="lbl-b" x="684" y="89" text-anchor="middle">Vision IA</text><text class="lbl-s" x="684" y="103" text-anchor="middle">YOLOv8n · MJPEG :8001</text>
+  <rect class="box-soft" x="626" y="128" width="116" height="40" rx="4"/><text class="lbl-b" x="684" y="145" text-anchor="middle">Prédictif IA</text><text class="lbl-s" x="684" y="159" text-anchor="middle">Isolation Forest</text>
+  <rect class="box-soft" x="626" y="186" width="116" height="36" rx="4"/><text class="lbl" x="684" y="208" text-anchor="middle">Webcam USB</text>
+  <path class="arrow" d="M684,186 L684,112"/>
+  <path class="arrow" d="M626,92 L550,92"/><text class="lbl-s" x="588" y="86" text-anchor="middle">POST /ai</text>
+  <path class="arrow" d="M626,148 L560,108"/>
+  <rect class="box-soft" x="318" y="252" width="232" height="36" rx="4"/><text class="lbl" x="434" y="274" text-anchor="middle">Navigateur du superviseur — http://serveur:8080 (auth)</text>
+  <path class="arrow" d="M500,200 L480,252"/>
+  <!-- liaison -->
+  <path class="arrow" d="M138,194 L138,214 L284,214 L284,92 L318,92"/>
+  <text class="lbl-b" x="160" y="209" style="fill:#2a78d6">MQTTS</text><text class="lbl-s" x="200" y="209">telemetry · alerts · status</text>
+  <path class="arrow" d="M318,102 L292,102 L292,228 L152,228 L152,194" style="stroke-dasharray:4 2"/>
+  <text class="lbl-s" x="160" y="241">cmd : buzzer, LED, caméra</text>
+</svg>
+<figcaption>Figure 1 — Architecture logicielle et matérielle. Flèches pleines : flux de données ; pointillés : commandes descendantes.</figcaption>
+</figure>
+
+<h2>2.1 Choix techniques et justification</h2>
+<table>
+<tr><th style="width:22%">Brique</th><th style="width:26%">Choix</th><th>Pourquoi</th></tr>
+<tr><td>Transport boîtier → serveur</td><td>MQTT sur TLS (Mosquitto)</td><td>Léger pour un microcontrôleur, reconnexion et <i>Last Will</i> intégrés, un seul lien chiffré à maintenir, topics lisibles par toutes les filières.</td></tr>
+<tr><td>API</td><td>Python / FastAPI</td><td>Asynchrone natif pour le WebSocket, validation stricte des payloads (Pydantic), documentation OpenAPI générée pour le jury.</td></tr>
+<tr><td>Base de données</td><td>PostgreSQL 16</td><td>Séries temporelles simples indexées sur l'horodatage, directement exploitables par Scikit-Learn ; 17 280 lignes/jour ≈ 2 Mo.</td></tr>
+<tr><td>Dashboard</td><td>React + TypeScript, servi par nginx</td><td>Rendu temps réel par WebSocket ; nginx injecte la clé API côté serveur et protège l'accès par mot de passe.</td></tr>
+<tr><td>Vision</td><td>YOLOv8n (Ultralytics)</td><td>Détection de personne robuste, 33 ms par trame sur CPU Apple M4 en 640×480, modèle de 6 Mo.</td></tr>
+<tr><td>Prédictif</td><td>Isolation Forest (Scikit-Learn)</td><td>Non supervisé : pas d'incident étiqueté nécessaire ; détecte une fenêtre « anormale » par sa forme (pentes, variabilité, corrélation).</td></tr>
+<tr><td>Montage électronique</td><td>Version minimale sur USB</td><td>Six composants obligatoires sans transistor ni pont diviseur, MQ-2 en 3,3 V : moins de points de panne pour la démo.</td></tr>
+</table>
+
+<!-- ===================== 3. RÉSEAU ===================== -->
+<h1><span class="num">3</span>Réseau : topologie et plan d'adressage</h1>
+<figure>
+<svg viewBox="0 0 760 250" width="100%" xmlns="http://www.w3.org/2000/svg">
+  <rect class="zone" x="8" y="10" width="744" height="230" rx="6"/>
+  <text class="lbl-b" x="18" y="28">Réseau de table isolé — SSID SENTINEL-G1 (WPA2, 2,4 GHz) — 192.168.10.0/24</text>
+  <rect class="box" x="320" y="48" width="120" height="44" rx="4"/><text class="lbl-b" x="380" y="66" text-anchor="middle">Point d'accès Wi-Fi</text><text class="lbl-s" x="380" y="82" text-anchor="middle">hotspot du laptop ou routeur dédié</text>
+  <rect class="box" x="40" y="140" width="190" height="70" rx="4"/><text class="lbl-b" x="135" y="160" text-anchor="middle">PC Serveur Local</text><text class="lbl" x="135" y="176" text-anchor="middle">192.168.10.1 (statique)</text><text class="lbl-s" x="135" y="190" text-anchor="middle">8883 MQTTS · 8080 dashboard · 8000 API</text><text class="lbl-s" x="135" y="203" text-anchor="middle">8001 flux vidéo IA · 22 SSH (clés)</text>
+  <rect class="box" x="300" y="150" width="160" height="60" rx="4"/><text class="lbl-b" x="380" y="170" text-anchor="middle">Boîtier SENTINEL-X</text><text class="lbl" x="380" y="186" text-anchor="middle">192.168.10.50 (réservation)</text><text class="lbl-s" x="380" y="200" text-anchor="middle">client MQTTS uniquement</text>
+  <rect class="box" x="530" y="150" width="190" height="60" rx="4"/><text class="lbl-b" x="625" y="170" text-anchor="middle">Postes du groupe / jury</text><text class="lbl" x="625" y="186" text-anchor="middle">192.168.10.100–199 (DHCP)</text><text class="lbl-s" x="625" y="200" text-anchor="middle">dashboard en HTTP + mot de passe</text>
+  <path class="arrow" d="M340,92 L160,140"/><path class="arrow" d="M380,92 L380,150"/><path class="arrow" d="M420,92 L600,150"/>
+  <text class="lbl-s" x="230" y="110" text-anchor="middle">Wi-Fi</text><text class="lbl-s" x="530" y="110" text-anchor="middle">Wi-Fi</text>
+</svg>
+<figcaption>Figure 2 — Topologie du réseau de table. Aucun routage vers les autres tables ; seul le serveur dispose éventuellement d'un accès Internet.</figcaption>
+</figure>
+
+<table>
+<tr><th>Port</th><th>Service</th><th>Exposé à</th><th>Protection</th></tr>
+<tr><td>8883</td><td>MQTTS (Mosquitto)</td><td>boîtier, scripts IA</td><td>TLS 1.3, login/mot de passe, anonyme refusé, limites anti-flood</td></tr>
+<tr><td>1883</td><td>MQTT en clair</td><td>localhost uniquement (debug)</td><td>à fermer au pare-feu avant le pentest</td></tr>
+<tr><td>8000 (8010 en dev)</td><td>API REST + WebSocket</td><td>postes du groupe</td><td>clé API sur toutes les écritures, validation des payloads, CORS restreint</td></tr>
+<tr><td>8080</td><td>Dashboard (nginx)</td><td>postes du groupe, jury</td><td>authentification HTTP, en-têtes de durcissement, clé API jamais côté navigateur</td></tr>
+<tr><td>8001</td><td>Flux vidéo MJPEG de l'IA</td><td>navigateur du superviseur</td><td>lecture seule, à restreindre au laptop pour la démo</td></tr>
+<tr><td>5432</td><td>PostgreSQL</td><td>personne (réseau Docker interne)</td><td>pas de port publié sur l'hôte</td></tr>
+</table>
+<div class="note">Au test de bout en bout du 5 octobre, le boîtier a rejoint le réseau en 2 s, établi la session TLS avec le serveur et maintenu un signal de −46 dBm. Après une mise en veille du serveur de 98 minutes, il s'est reconnecté seul sans intervention : le <i>Last Will</i> MQTT a marqué le boîtier hors ligne, puis en ligne au retour.</div>
+
+<!-- ===================== 4. ÉLECTRONIQUE ===================== -->
+<h1><span class="num">4</span>Électronique : composants et schéma de câblage</h1>
+<table>
+<tr><th>Composant</th><th>Rôle</th><th>Alimentation</th><th>Broche ESP</th><th>Remarque</th></tr>
+<tr><td>ESP8266 NodeMCU Lolin v3</td><td>microcontrôleur, Wi-Fi, firmware</td><td>USB 5 V (dev) / 7,5 V sur VIN (démo)</td><td>—</td><td>monté sur le pack myDiL, 2 breadboards 170 pts</td></tr>
+<tr><td>OLED 0,96" I2C (0x3C)</td><td>IP, état Wi-Fi/MQTT, mesures, alertes</td><td>3,3 V</td><td>D1 SCL · D2 SDA</td><td>visible en face avant</td></tr>
+<tr><td>DHT22 (module 3 broches)</td><td>température et humidité</td><td>3,3 V</td><td>D5</td><td>résistance de rappel intégrée au module</td></tr>
+<tr><td>MQ-2</td><td>gaz combustibles / fumée</td><td>3,3 V volontairement</td><td>A0 (analogique)</td><td>pas de pont diviseur ; seuils relatifs à la ligne de base</td></tr>
+<tr><td>PIR mini (APKLVSR)</td><td>présence</td><td>5 V (VU)</td><td>D6</td><td>sortie 3,3 V, sans potentiomètre, délai fixe</td></tr>
+<tr><td>Buzzer passif (module 3 broches)</td><td>alarme mélodique par PWM</td><td>3,3 V ou 5 V (VU)</td><td>D7</td><td>mélodie extraite des données de jeu Doom (E1M1)</td></tr>
+<tr><td>LED bicolore cathode commune</td><td>vert = nominal, rouge = alerte / liaison perdue</td><td>—</td><td>D0 rouge · D8 verte</td><td>2 × 220 Ω</td></tr>
+</table>
+<p class="small">Broches de démarrage préservées : D3 (GPIO0), D4 (GPIO2) et D8 (GPIO15) ne reçoivent qu'une LED vers la masse (D8), jamais de signal au niveau haut au boot. D3/D4/EN/RST/VIN restent libres : un fil mal placé sur EN a figé la carte lors du premier câblage, l'erreur est documentée dans le guide.</p>
+
+<figure>
+<svg viewBox="0 0 760 420" width="100%" xmlns="http://www.w3.org/2000/svg">
+  <!-- carte ESP -->
+  <rect class="box" x="300" y="30" width="120" height="372" rx="6"/>
+  <text class="lbl-b" x="360" y="20" text-anchor="middle">NodeMCU Lolin v3 (ESP8266)</text>
+  <g class="lbl-s">
+    <!-- côté droit -->
+    <text x="404" y="53" text-anchor="end">D0</text><text x="404" y="77" text-anchor="end">D1</text><text x="404" y="101" text-anchor="end">D2</text>
+    <text x="404" y="125" text-anchor="end">D3</text><text x="404" y="149" text-anchor="end">D4</text><text x="404" y="173" text-anchor="end">3V</text>
+    <text x="404" y="197" text-anchor="end">G</text><text x="404" y="221" text-anchor="end">D5</text><text x="404" y="245" text-anchor="end">D6</text>
+    <text x="404" y="269" text-anchor="end">D7</text><text x="404" y="293" text-anchor="end">D8</text><text x="404" y="317" text-anchor="end">RX</text>
+    <text x="404" y="341" text-anchor="end">TX</text><text x="404" y="365" text-anchor="end">G</text><text x="404" y="389" text-anchor="end">3V</text>
+    <!-- côté gauche -->
+    <text x="316" y="53">A0</text><text x="316" y="77">G</text><text x="316" y="101">VU</text><text x="316" y="125">S3</text><text x="316" y="149">S2</text>
+    <text x="316" y="173">S1</text><text x="316" y="197">SC</text><text x="316" y="221">SO</text><text x="316" y="245">SK</text><text x="316" y="269">G</text>
+    <text x="316" y="293">3V</text><text x="316" y="317">EN</text><text x="316" y="341">RST</text><text x="316" y="365">G</text><text x="316" y="389">VIN</text>
+  </g>
+  <g fill="#0b2a4a">
+    <circle cx="420" cy="50" r="2.5"/><circle cx="420" cy="74" r="2.5"/><circle cx="420" cy="98" r="2.5"/><circle cx="420" cy="122" r="2.5"/><circle cx="420" cy="146" r="2.5"/>
+    <circle cx="420" cy="170" r="2.5"/><circle cx="420" cy="194" r="2.5"/><circle cx="420" cy="218" r="2.5"/><circle cx="420" cy="242" r="2.5"/><circle cx="420" cy="266" r="2.5"/>
+    <circle cx="420" cy="290" r="2.5"/><circle cx="420" cy="314" r="2.5"/><circle cx="420" cy="338" r="2.5"/><circle cx="420" cy="362" r="2.5"/><circle cx="420" cy="386" r="2.5"/>
+    <circle cx="300" cy="50" r="2.5"/><circle cx="300" cy="74" r="2.5"/><circle cx="300" cy="98" r="2.5"/><circle cx="300" cy="266" r="2.5"/><circle cx="300" cy="290" r="2.5"/>
+  </g>
+  <!-- OLED -->
+  <rect class="box-soft" x="560" y="38" width="150" height="62" rx="4"/><text class="lbl-b" x="635" y="54" text-anchor="middle">OLED 0,96" I2C</text>
+  <text class="lbl-s" x="568" y="68">GND</text><text class="lbl-s" x="568" y="80">VCC</text><text class="lbl-s" x="568" y="92">SCL · SDA</text>
+  <path class="wire" stroke="#111" d="M560,64 L480,64 L480,194 L420,194"/>
+  <path class="wire" stroke="#d03b3b" d="M560,76 L488,76 L488,170 L420,170"/>
+  <path class="wire" stroke="#2a78d6" d="M560,88 L470,88 L470,74 L420,74"/>
+  <path class="wire" stroke="#2a78d6" d="M560,94 L462,94 L462,98 L420,98"/>
+  <!-- DHT22 -->
+  <rect class="box-soft" x="560" y="116" width="150" height="56" rx="4"/><text class="lbl-b" x="635" y="132" text-anchor="middle">DHT22</text>
+  <text class="lbl-s" x="568" y="146">+ (3V)</text><text class="lbl-s" x="568" y="158">out → D5</text><text class="lbl-s" x="568" y="169">− (G)</text>
+  <path class="wire" stroke="#d03b3b" d="M560,142 L496,142 L496,170 L420,170"/>
+  <path class="wire" stroke="#1baf7a" d="M560,154 L504,154 L504,218 L420,218"/>
+  <path class="wire" stroke="#111" d="M560,166 L512,166 L512,194 L420,194"/>
+  <!-- PIR -->
+  <rect class="box-soft" x="560" y="188" width="150" height="56" rx="4"/><text class="lbl-b" x="635" y="204" text-anchor="middle">PIR mini</text>
+  <text class="lbl-s" x="568" y="218">VCC → VU (5 V)</text><text class="lbl-s" x="568" y="230">OUT → D6</text><text class="lbl-s" x="568" y="241">GND</text>
+  <path class="wire" stroke="#e8a000" d="M560,214 L540,214 L540,12 L286,12 L286,98 L300,98"/>
+  <path class="wire" stroke="#1baf7a" d="M560,226 L520,226 L520,242 L420,242"/>
+  <path class="wire" stroke="#111" d="M560,238 L528,238 L528,194 L420,194"/>
+  <!-- Buzzer -->
+  <rect class="box-soft" x="560" y="260" width="150" height="56" rx="4"/><text class="lbl-b" x="635" y="276" text-anchor="middle">Buzzer passif</text>
+  <text class="lbl-s" x="568" y="290">S → D7 (PWM)</text><text class="lbl-s" x="568" y="302">VCC → 3V / VU</text><text class="lbl-s" x="568" y="313">GND</text>
+  <path class="wire" stroke="#1baf7a" d="M560,286 L500,286 L500,266 L420,266"/>
+  <path class="wire" stroke="#d03b3b" d="M560,298 L548,298 L548,386 L420,386"/>
+  <path class="wire" stroke="#111" d="M560,310 L536,310 L536,362 L420,362"/>
+  <!-- LED -->
+  <rect class="box-soft" x="560" y="332" width="150" height="70" rx="4"/><text class="lbl-b" x="635" y="348" text-anchor="middle">LED bicolore</text>
+  <text class="lbl-s" x="568" y="362">rouge ─[220 Ω]─ D0</text><text class="lbl-s" x="568" y="376">verte ─[220 Ω]─ D8</text><text class="lbl-s" x="568" y="390">commune → G</text>
+  <rect class="box" x="470" y="353" width="22" height="9"/><path class="wire" stroke="#d03b3b" d="M560,358 L492,358"/><path class="wire" stroke="#d03b3b" d="M470,358 L454,358 L454,50 L420,50"/>
+  <rect class="box" x="470" y="367" width="22" height="9"/><path class="wire" stroke="#1baf7a" d="M560,372 L492,372"/><path class="wire" stroke="#1baf7a" d="M470,372 L446,372 L446,290 L420,290"/>
+  <path class="wire" stroke="#111" d="M560,386 L438,386 L438,362 L420,362"/>
+  <!-- MQ-2 -->
+  <rect class="box-soft" x="70" y="38" width="160" height="70" rx="4"/><text class="lbl-b" x="150" y="54" text-anchor="middle">MQ-2 (gaz)</text>
+  <text class="lbl-s" x="78" y="70">AO → A0</text><text class="lbl-s" x="78" y="84">VCC → 3V</text><text class="lbl-s" x="78" y="98">GND → G · DO libre</text>
+  <path class="wire" stroke="#eb6834" d="M230,66 L270,66 L270,50 L300,50"/>
+  <path class="wire" stroke="#d03b3b" d="M230,80 L262,80 L262,290 L300,290"/>
+  <path class="wire" stroke="#111" d="M230,94 L254,94 L254,266 L300,266"/>
+  <!-- légende -->
+  <g class="lbl-s"><rect x="70" y="330" width="14" height="3" fill="#d03b3b"/><text x="90" y="334">3,3 V / 5 V</text>
+  <rect x="70" y="346" width="14" height="3" fill="#111"/><text x="90" y="350">masse</text>
+  <rect x="70" y="362" width="14" height="3" fill="#2a78d6"/><text x="90" y="366">I2C</text>
+  <rect x="70" y="378" width="14" height="3" fill="#1baf7a"/><text x="90" y="382">signal numérique</text>
+  <rect x="70" y="394" width="14" height="3" fill="#eb6834"/><text x="90" y="398">signal analogique</text></g>
+</svg>
+<figcaption>Figure 3 — Schéma de câblage du montage minimal, entièrement alimenté par l'USB en développement.</figcaption>
+</figure>
+
+<h2>4.1 Alimentation et courant</h2>
+<p>Deux modes exclusifs : en développement, l'ESP est alimenté par le câble USB et fournit le 3,3 V (broche 3V)
+et le 5 V de l'USB (broche VU) ; en démonstration, le bloc 220 V → 7,5 V alimente VIN, et le convertisseur
+DC-DC 7,5 V → 5 V fournit le rail 5 V. <b>Le bloc 7,5 V n'est jamais branché en même temps que l'USB.</b>
+Budget mesuré en 5 V : ESP ≈ 80 mA (pics 300 mA au démarrage radio), MQ-2 ≈ 150 mA, PIR ≈ 65 mA, OLED ≈ 20 mA,
+soit ≈ 350 mA en régime établi. Le firmware désactive la calibration radio au boot et limite la puissance
+d'émission à 17 dBm pour réduire les pics sur une alimentation USB.</p>
+
+<!-- ===================== 5. FIRMWARE ===================== -->
+<h1><span class="num">5</span>Firmware ESP8266</h1>
+<p>Un seul fichier <code>firmware/src/main.cpp</code> (C++, framework Arduino, PlatformIO, carte <code>esp12e</code>),
+boucle non bloquante cadencée par <code>millis()</code>. Compilation : 31 Ko de RAM statique (38 %), 424 Ko de flash (41 %),
+≈ 17,6 Ko de tas libre une fois la session TLS établie.</p>
+<table>
+<tr><th style="width:28%">Événement</th><th>Comportement</th></tr>
+<tr><td>Toutes les 2 s</td><td>lecture DHT22 (filtre de plausibilité −40…80 °C, 0…100 %), médiane de 8 échantillons ADC du MQ-2, état PIR</td></tr>
+<tr><td>Toutes les 5 s</td><td>publication <code>sentinel/g1/telemetry</code> (température, humidité, gaz brut et ppm estimés, présence, RSSI, tas libre)</td></tr>
+<tr><td>Franchissement de seuil</td><td>publication <code>sentinel/g1/alerts</code> à l'entrée, à l'escalade (attention → critique) et à la sortie avec hystérésis</td></tr>
+<tr><td>Gaz</td><td>3 min de chauffe sans alerte, ligne de base = moyenne sur 20 s puis suivi lent ; alerte à +80 (attention) et +200 (critique) au-dessus de la ligne de base</td></tr>
+<tr><td>PIR</td><td>alerte <code>motion</code> on/off, mélodie d'alarme, LED rouge</td></tr>
+<tr><td>Panne DHT22</td><td>3 lectures ratées consécutives → alerte <code>sensor_fault</code></td></tr>
+<tr><td>Connexion MQTT</td><td><code>status</code> retenu <code>online:true</code>, <i>Last Will</i> <code>online:false</code> publié par le broker si le boîtier disparaît</td></tr>
+<tr><td>Commande <code>cmd</code></td><td><code>buzzer</code>, <code>led_red</code>, <code>led_green</code>, <code>led</code> : on / off / blink / pulse ; <code>camera</code> on/off : intrusion vue par l'IA → écran « ALERTE CAMERA », LED rouge, mélodie</td></tr>
+<tr><td>Écran OLED</td><td>identité, IP, état MQTT et RSSI, mesures, ligne d'état : nominal / ALERTE PIR / CAMERA / CAM+PIR / gaz / temp</td></tr>
+</table>
+<h2>5.1 Seuils locaux</h2>
+<table>
+<tr><th>Mesure</th><th>Attention</th><th>Critique</th><th>Hystérésis</th></tr>
+<tr><td>Température</td><td>&gt; 35 °C</td><td>&gt; 45 °C</td><td>2 °C</td></tr>
+<tr><td>Humidité</td><td>&gt; 80 %</td><td>&gt; 90 %</td><td>3 %</td></tr>
+<tr><td>Gaz (valeur brute 0–1023)</td><td>ligne de base + 80</td><td>ligne de base + 200</td><td>30</td></tr>
+</table>
+<p>Ces seuils sont des garde-fous « réflexe ». La détection fine d'une dérive lente et corrélée est confiée au modèle prédictif côté serveur (§ 8.2), conformément au sujet qui proscrit les simples conditions statiques.</p>
+<h2>5.2 Sécurité et robustesse embarquées</h2>
+<ul>
+  <li>Session MQTTS vérifiée par l'empreinte SHA-1 du certificat serveur (épinglage), sans dépendance à une horloge réseau ; variante par CA locale disponible.</li>
+  <li>Identifiants dans <code>include/secrets.h</code>, exclu de Git ; le dépôt ne contient qu'un <code>secrets.h.example</code>.</li>
+  <li>Reconnexion Wi-Fi et MQTT automatiques avec temporisation ; le boîtier continue de mesurer et d'alerter localement hors réseau.</li>
+  <li>Mode banc d'essai (<code>pio run -e bench</code>) : radio coupée, mesures tracées sur le port série, pour câbler et tester sans réseau.</li>
+</ul>
+
+<!-- ===================== 6. SERVEUR ===================== -->
+<h1><span class="num">6</span>Serveur : conteneurs, API, base de données</h1>
+<h2>6.1 Pile Docker Compose</h2>
+<table>
+<tr><th>Service</th><th>Image</th><th>Rôle</th><th>Exposition</th></tr>
+<tr><td><code>mosquitto</code></td><td>eclipse-mosquitto 2.0</td><td>broker MQTT, listener TLS 8883, listener clair 1883 (debug), mots de passe, limites anti-flood</td><td>8883 (table), 1883 (local)</td></tr>
+<tr><td><code>db</code></td><td>postgres 16-alpine</td><td>stockage, volume persistant, healthcheck</td><td>aucune</td></tr>
+<tr><td><code>api</code></td><td>build local (python 3.12-slim, non root)</td><td>pont MQTT → base → WebSocket, REST, validation, clé API</td><td>8000</td></tr>
+<tr><td><code>dashboard</code></td><td>build local (node 22 → nginx 1.27)</td><td>front React, proxy /api et /ws avec injection de la clé, authentification HTTP</td><td>8080</td></tr>
+</table>
+<p>Mise en service : <code>infra/scripts/bootstrap.sh &lt;IP&gt;</code> génère le <code>.env</code> (secrets aléatoires), la CA et le certificat serveur, le fichier de mots de passe Mosquitto et celui du dashboard ; puis <code>docker compose up -d --build</code>.</p>
+<h2>6.2 Contrat de données (extrait)</h2>
+<table>
+<tr><th>Topic MQTT</th><th>Sens</th><th>Contenu</th></tr>
+<tr><td><code>sentinel/g1/telemetry</code></td><td>boîtier → serveur, 5 s</td><td><code>{"device_id","uptime_ms","temperature","humidity","gas_raw","gas_ppm","motion","rssi","heap_free"}</code></td></tr>
+<tr><td><code>sentinel/g1/alerts</code></td><td>boîtier → serveur</td><td><code>{"type","state":"on|off","value","severity":"info|warning|critical"}</code></td></tr>
+<tr><td><code>sentinel/g1/status</code></td><td>boîtier → serveur, retenu</td><td><code>{"online","ip","fw"}</code> + Last Will</td></tr>
+<tr><td><code>sentinel/g1/cmd</code></td><td>serveur → boîtier</td><td><code>{"actuator","action","duration_ms","cmd_id"}</code></td></tr>
+</table>
+<table>
+<tr><th>Méthode</th><th>Route (préfixe <code>/api/v1</code>)</th><th>Rôle</th><th>Accès</th></tr>
+<tr><td>GET</td><td><code>/health</code></td><td>état API, broker, base, clients WebSocket</td><td>libre</td></tr>
+<tr><td>POST</td><td><code>/alerts</code></td><td><b>point d'entrée obligatoire du sujet</b> : réception d'un changement d'état</td><td>clé API</td></tr>
+<tr><td>GET</td><td><code>/alerts</code>, <code>/telemetry</code>, <code>/telemetry/latest</code>, <code>/devices</code>, <code>/commands</code></td><td>historiques et état</td><td>libre (réseau de table)</td></tr>
+<tr><td>POST</td><td><code>/commands</code></td><td>pilotage des actionneurs, publié sur <code>cmd</code></td><td>clé API</td></tr>
+<tr><td>POST</td><td><code>/ai/detections</code>, <code>/ai/predictions</code></td><td>résultats des scripts IA</td><td>clé API</td></tr>
+<tr><td>WS</td><td><code>/ws</code></td><td>diffusion temps réel : telemetry, alert, status, command, detection, prediction</td><td>via nginx authentifié</td></tr>
+</table>
+<p class="small">Contrat complet : <code>docs/CONTRAT_DONNEES.md</code>. Documentation OpenAPI générée : <code>/docs</code> sur l'API.</p>
+<h2>6.3 Base de données</h2>
+<table>
+<tr><th>Table</th><th>Contenu</th><th>Alimentée par</th></tr>
+<tr><td><code>devices</code></td><td>état du boîtier : online, IP, firmware, dernier signe de vie</td><td>status + chaque message</td></tr>
+<tr><td><code>telemetry</code></td><td>mesures horodatées (index sur <code>ts</code>, <code>device_id</code>)</td><td>MQTT, POST /telemetry</td></tr>
+<tr><td><code>alerts</code></td><td>type, état, valeur, sévérité, source (esp / api / ai)</td><td>MQTT, POST /alerts, IA</td></tr>
+<tr><td><code>commands</code></td><td>ordres envoyés et statut de publication</td><td>POST /commands</td></tr>
+<tr><td><code>detections</code></td><td>détections de la vision : label, confiance, boîte englobante</td><td>POST /ai/detections</td></tr>
+<tr><td><code>predictions</code></td><td>scores d'anomalie, fenêtre, caractéristiques</td><td>POST /ai/predictions</td></tr>
+</table>
+<p class="small">Schéma SQL exporté : <code>infra/db/schema.sql</code>. Console : <code>infra/scripts/db-shell.sh</code>. Volume : 17 280 lignes de télémétrie par jour, ≈ 2 Mo.</p>
+
+<!-- ===================== 7. DASHBOARD ===================== -->
+<h1><span class="num">7</span>Dashboard de supervision</h1>
+<figure><img src="img/dashboard.png" alt="Dashboard SENTINEL-X" style="border:1px solid #c9cdd3;border-radius:3px">
+<figcaption>Figure 4 — Centre de Commandement Tactique : boîtier en ligne, tuiles d'état, courbes temps réel, journal, commandes, panneau IA.</figcaption></figure>
+<ul>
+  <li><b>Barre d'état</b> : boîtier en ligne / hors ligne (IP, firmware, dernier signe de vie), broker MQTT, liaison temps réel.</li>
+  <li><b>Indicateurs</b> : température, humidité, gaz, présence, chacun avec un statut icône + libellé (jamais la couleur seule).</li>
+  <li><b>Courbes</b> : une série par graphique, seuils tracés, curseur, vue tableau pour chaque courbe, fenêtre 15 min à 2 h.</li>
+  <li><b>Journal des alertes</b> : présence (PIR), intrusion (IA), gaz, température, capteur en défaut, anomalie prédictive, avec début et fin.</li>
+  <li><b>Panneau de commande</b> : alarme, LED rouge / verte, retour automatique ; retour « transmis au boîtier » ou « broker hors ligne ».</li>
+  <li><b>Panneau IA</b> : flux vidéo annoté par YOLO, dernière détection, verdict de la maintenance prédictive.</li>
+  <li>Thème clair / sombre, mise en page utilisable sur téléphone, palette validée pour les daltonismes.</li>
+</ul>
+
+<!-- ===================== 8. IA ===================== -->
+<h1><span class="num">8</span>Intelligence artificielle locale</h1>
+<h2>8.1 Vision : détection d'intrusion sur webcam USB</h2>
+<div class="cols">
+<div>
+<p>Script <code>ai/vision.py</code> sur le laptop : capture de la webcam USB, redimensionnement en 640×480, inférence
+YOLOv8n (Ultralytics, poids de 6 Mo) restreinte à la classe <i>personne</i>, seuil de confiance 0,5.</p>
+<ul>
+  <li>Personne détectée → <code>POST /alerts</code> type <code>intrusion</code> critique, commande <code>camera on</code> vers le boîtier (écran, LED rouge, mélodie), puis une détection toutes les 2 s.</li>
+  <li>Zone vide depuis 5 s → fin d'alerte, <code>camera off</code>.</li>
+  <li>Flux MJPEG annoté servi sur le port 8001, affiché dans le dashboard.</li>
+  <li>Sélection de la caméra par nom (« USB ») ou menu au lancement ; la caméra intégrée du laptop n'est jamais utilisée en démo.</li>
+</ul>
+<table>
+<tr><th>Mesure</th><th>Valeur</th></tr>
+<tr><td>Inférence par trame</td><td>33 ms (caméra intégrée), 32–45 ms (webcam USB 1080p redimensionnée)</td></tr>
+<tr><td>Débit</td><td>15–24 trames/s, limité par la webcam</td></tr>
+<tr><td>Confiance typique</td><td>0,84–0,93 sur une personne de face à 1–2 m</td></tr>
+</table>
+</div>
+<div><figure><img src="img/vision.jpg" alt="Détection YOLOv8n" style="border:1px solid #c9cdd3;border-radius:3px"><figcaption>Figure 5 — Trame annotée : personne à 91 %, 32 ms, second individu détecté en arrière-plan.</figcaption></figure></div>
+</div>
+
+<h2>8.2 Maintenance prédictive : Isolation Forest sur fenêtres glissantes</h2>
+<p>Script <code>ai/predict.py</code>. L'historique de télémétrie est découpé en fenêtres de 300 s (pas de 60 s). Pour
+chaque fenêtre on calcule sept caractéristiques cinétiques :</p>
+<table>
+<tr><th>Caractéristique</th><th>Signification</th></tr>
+<tr><td><code>temp_mean</code>, <code>gas_mean</code></td><td>niveau moyen de température et de gaz</td></tr>
+<tr><td><code>temp_slope</code>, <code>gas_slope</code>, <code>hum_slope</code></td><td>pente par minute (régression linéaire) : une hausse lente est visible bien avant un seuil</td></tr>
+<tr><td><code>gas_std</code></td><td>variabilité du gaz dans la fenêtre</td></tr>
+<tr><td><code>temp_gas_corr</code></td><td>corrélation température / gaz : la signature d'un incident thermique avec émission de gaz</td></tr>
+</table>
+<p>Un Isolation Forest (200 arbres, contamination 3 %) apprend la forme « normale » des fenêtres sur les 12 dernières heures,
+se ré-entraîne toutes les 30 min, et score la fenêtre courante toutes les 30 s : score négatif = anomalie, alerte
+<code>anomaly</code> publiée et levée automatiquement. Premier entraînement réel : 133 fenêtres à partir de 2 042 mesures
+du boîtier, verdict « normal » (score +0,23). Le scénario de validation est joué avec le simulateur
+(<code>backend/tools/simulate_esp.py --drift</code>) qui injecte une dérive lente et simultanée de température et de gaz.</p>
+<div class="note">Limites assumées : le modèle n'a vu que quelques heures de fonctionnement ; il ne « comprend » pas la physique
+mais signale ce qui ne ressemble pas au passé récent. Les seuils réflexe du boîtier restent la dernière ligne de défense.</div>
+
+<!-- ===================== 9. SÉCURITÉ ===================== -->
+<h1><span class="num">9</span>Sécurité : matrice, chiffrement, durcissement</h1>
+<h2>9.1 Matrice de sécurité</h2>
+<table style="font-size:8.8pt">
+<tr><th style="width:21%">Menace</th><th style="width:33%">Mesure en place</th><th style="width:30%">Preuve</th><th>État</th></tr>
+<tr><td>Écoute du Wi-Fi de table (MitM, sniffing des mesures et commandes)</td><td>MQTT sur TLS 1.3 entre le boîtier et le broker ; certificat serveur épinglé par empreinte sur l'ESP</td><td>Handshake <code>openssl s_client</code> ci-dessous ; capture Wireshark du port 8883 à joindre jeudi (trames <i>Application Data</i>, aucun JSON lisible)</td><td class="status-ok">en place</td></tr>
+<tr><td>Injection de fausses mesures ou de commandes sur le broker</td><td>Anonyme refusé, authentification par compte, topics préfixés <code>sentinel/g1/</code></td><td><code>mosquitto_pub</code> sans identifiants → <i>Connection Refused: not authorised</i></td><td class="status-ok">en place</td></tr>
+<tr><td>Flood MQTT / déni de service du broker</td><td>50 connexions max, 20 messages en vol, file de 1 000, paquets ≤ 4 Ko</td><td><code>infra/mosquitto/mosquitto.conf</code></td><td class="status-ok">en place</td></tr>
+<tr><td>Écritures non autorisées sur l'API (fausses alertes, buzzer)</td><td>Clé API sur toutes les écritures, comparaison en temps constant, validation stricte des payloads</td><td><code>POST /commands</code> sans clé → HTTP 401 ; télémétrie hors plage rejetée (observé : 125 °C refusé)</td><td class="status-ok">en place</td></tr>
+<tr><td>Fuite de la clé API via le navigateur</td><td>La clé n'est jamais livrée au front : nginx et le serveur de dev l'injectent côté serveur</td><td><code>dashboard/nginx/default.conf.template</code></td><td class="status-ok">en place</td></tr>
+<tr><td>Accès au dashboard par un tiers sur le réseau</td><td>Authentification HTTP, en-têtes <code>X-Frame-Options</code>, <code>nosniff</code>, version nginx masquée</td><td><code>GET /</code> sans identifiants → HTTP 401</td><td class="status-ok">en place</td></tr>
+<tr><td>Accès direct à la base de données</td><td>Aucun port publié ; accès uniquement via le réseau Docker interne</td><td><code>docker compose ps</code> : <code>5432/tcp</code> non mappé</td><td class="status-ok">en place</td></tr>
+<tr><td>Fuite de secrets par le code source</td><td><code>.env</code>, mots de passe, certificats, <code>secrets.h</code> exclus de Git ; secrets générés aléatoirement au bootstrap</td><td><code>git ls-files</code> ne contient aucun de ces fichiers</td><td class="status-ok">en place</td></tr>
+<tr><td>Élévation de privilèges via un conteneur</td><td>API exécutée par un utilisateur non root ; base et broker sur images officielles</td><td><code>backend/Dockerfile</code></td><td class="status-ok">en place</td></tr>
+<tr><td>Port MQTT en clair atteignable depuis le réseau</td><td>Limiter 1883 à localhost et le fermer au pare-feu</td><td>—</td><td class="status-todo">jeudi matin</td></tr>
+<tr><td>Dashboard et API en HTTP sur le réseau de table</td><td>Mot de passe transmis en clair : restreindre l'accès au seul laptop ou passer en HTTPS avec la CA locale</td><td>—</td><td class="status-todo">jeudi matin</td></tr>
+<tr><td>Compromission de l'hôte (laptop)</td><td>Pare-feu entrant, SSH par clés uniquement, Docker sans exposition du socket, mises à jour</td><td>—</td><td class="status-todo">jeudi matin (filière CYBER)</td></tr>
+<tr><td>Vol physique du boîtier</td><td>Identifiants Wi-Fi et MQTT lisibles dans la flash</td><td>risque résiduel accepté : rotation du mot de passe MQTT si le boîtier disparaît</td><td>résiduel</td></tr>
+</table>
+
+<h2>9.2 Preuve du chiffrement</h2>
+<pre style="font-size:8.2pt;padding:2mm 2.5mm">$ openssl s_client -connect serveur:8883 -brief
+CONNECTION ESTABLISHED
+Protocol version: TLSv1.3
+Ciphersuite: TLS_AES_256_GCM_SHA384
+Peer certificate: C=FR, O=AetherCorp, OU=Sentinel-X G1, CN=&lt;ip-serveur&gt;
+Hash used: SHA256 · Signature type: rsa_pss_rsae_sha256
+
+$ openssl x509 -in infra/mosquitto/certs/server.crt -noout -issuer -dates
+issuer=C=FR, O=AetherCorp, OU=Sentinel-X G1, CN=Sentinel-X CA
+notBefore=Oct  5 08:59:35 2026 GMT   notAfter=Oct  5 08:59:35 2027 GMT
+
+$ mosquitto_pub -h serveur -p 1883 -t test -m x        (sans identifiants)
+Connection error: Connection Refused: not authorised.
+
+$ curl -X POST http://serveur:8000/api/v1/commands -d '{...}'   (sans clé)   → HTTP 401
+$ curl http://serveur:8080/                                        (sans mot de passe) → HTTP 401</pre>
+<p>Côté boîtier, le journal série confirme : <code>[mqtt] connexion 10.108.128.150:8883 (TLS)... OK</code>. Le certificat est signé par une autorité locale
+générée par le consortium ; l'ESP vérifie l'empreinte SHA-1 du certificat serveur, ce qui rend toute substitution de serveur impossible sans accès au boîtier.</p>
+
+<h2>9.3 Plan de durcissement du serveur (jeudi matin, avant le gel du code)</h2>
+<ol>
+  <li>Pare-feu macOS activé, règles : autoriser 8883, 8080, 22 ; refuser le reste, dont 1883 et 8000 depuis le réseau.</li>
+  <li>Listener 1883 de Mosquitto lié à <code>127.0.0.1</code> ; API publiée sur <code>127.0.0.1:8000</code> uniquement, le dashboard nginx restant le seul point d'entrée.</li>
+  <li>SSH : authentification par clés uniquement, mot de passe désactivé, utilisateur dédié.</li>
+  <li>Docker : socket non exposé, images épinglées, conteneurs en lecture seule là où c'est possible.</li>
+  <li>Comptes MQTT distincts pour le boîtier, l'API et les scripts IA, avec droits par topic (ACL).</li>
+  <li>Capture Wireshark de référence sur 8883 et 1883 pour le rapport d'audit.</li>
+</ol>
+
+<!-- ===================== 10. AUDIT ===================== -->
+<h1><span class="num">10</span>Rapport d'audit post-pentest</h1>
+<div class="todo">Section à compléter jeudi 8 octobre après le pentest croisé. Le gabarit ci-dessous est à remplir pour chaque test subi et chaque test mené contre une autre table.</div>
+<h2>10.1 Tests subis (notre infrastructure)</h2>
+<table>
+<tr><th style="width:18%">Attaque</th><th style="width:16%">Outil</th><th style="width:22%">Vecteur</th><th>Résultat observé</th><th style="width:18%">Correctif</th></tr>
+<tr><td>Reconnaissance</td><td>Nmap</td><td>scan des ports du serveur depuis le réseau de table</td><td>à remplir : ports visibles, services identifiés</td><td>à remplir</td></tr>
+<tr><td>Homme du milieu</td><td>Wireshark / arpspoof</td><td>interception Wi-Fi entre boîtier et serveur</td><td>à remplir : trafic 8883 illisible attendu</td><td>à remplir</td></tr>
+<tr><td>Injection de payload</td><td>mosquitto_pub, curl</td><td>fausses mesures / commandes sur le broker ou l'API</td><td>à remplir : refus attendu (401, not authorised)</td><td>à remplir</td></tr>
+<tr><td>Déni de service</td><td>hping3, scripts</td><td>flood MQTT / HTTP</td><td>à remplir : limites du broker, charge CPU/RAM</td><td>à remplir</td></tr>
+<tr><td>Force brute</td><td>hydra</td><td>mot de passe du dashboard, comptes MQTT</td><td>à remplir</td><td>à remplir</td></tr>
+</table>
+<h2>10.2 Tests menés (infrastructure d'une autre table)</h2>
+<table>
+<tr><th>Cible</th><th>Attaque</th><th>Outil</th><th>Résultat</th><th>Recommandation transmise</th></tr>
+<tr><td>à remplir</td><td>à remplir</td><td>à remplir</td><td>à remplir</td><td>à remplir</td></tr>
+</table>
+<h2>10.3 Synthèse et mesures correctives</h2>
+<p>À remplir : vulnérabilités confirmées, sévérité, correctifs appliqués avant la soutenance, risques résiduels acceptés.</p>
+
+<!-- ===================== 11. EXPLOITATION ===================== -->
+<h1><span class="num">11</span>Exploitation et maintien en condition opérationnelle</h1>
+<h2>11.1 Mise en service en cinq commandes</h2>
+<pre>./infra/scripts/bootstrap.sh 192.168.10.1      # .env, CA + certificat, mots de passe
+docker compose up -d --build                    # broker, base, API, dashboard
+cd firmware && make upload                      # secrets.h renseigné : Wi-Fi, IP, empreinte
+cd ai && .venv/bin/python vision.py             # webcam USB → YOLO → API
+cd ai && .venv/bin/python predict.py            # maintenance prédictive</pre>
+<h2>11.2 Contrôles avant démonstration</h2>
+<ul>
+  <li><code>curl http://localhost:8000/api/v1/health</code> → <code>status: ok</code>, broker et base connectés.</li>
+  <li>Dashboard : boîtier en ligne, mesures qui défilent, test du bouton « Alarme ».</li>
+  <li>Laptop sur secteur, veille désactivée (<code>caffeinate -dims</code>) : une veille de 98 min a été observée pendant les tests, le boîtier s'est reconnecté seul.</li>
+  <li><code>heap_free</code> dans la télémétrie ≥ 10 Ko ; valeur courante ≈ 17,6 Ko.</li>
+  <li>Caméra de continuité de l'iPhone désactivée : elle décale les index de caméra du script de vision.</li>
+</ul>
+<h2>11.3 Surveillance de la machine hôte</h2>
+<p><code>docker stats</code> pour CPU/RAM des conteneurs ; journaux Mosquitto persistés dans un volume avec rotation implicite par taille de file ; <code>docker compose logs -f api</code> pour les payloads rejetés. En cas de redémarrage de l'hôte, <code>restart: unless-stopped</code> relance la pile.</p>
+<h2>11.4 Incidents rencontrés et résolus</h2>
+<table>
+<tr><th style="width:34%">Symptôme</th><th>Cause</th><th>Résolution</th></tr>
+<tr><td>Port série qui disparaît à l'ouverture (macOS)</td><td>pilote CH340 natif sensible aux lignes DTR/RTS forcées</td><td>ouverture du port avec les réglages par défaut ; documenté</td></tr>
+<tr><td>Carte figée, « Fatal exception (0) » en boucle</td><td>fil sur la broche EN pendant le câblage du DHT22</td><td>recâblage sur 3V / G / D5 côté droit, reflash</td></tr>
+<tr><td>Valeurs DHT22 aberrantes (125 °C)</td><td>fil de données sur D6 au lieu de D5, trames corrompues</td><td>filtre de plausibilité dans le firmware + correction du câblage</td></tr>
+<tr><td>Alerte gaz permanente</td><td>seuils absolus inadaptés au MQ-2 alimenté en 3,3 V</td><td>seuils relatifs à une ligne de base auto-calibrée après 3 min de chauffe, médiane ADC</td></tr>
+<tr><td>Le script de vision ouvre l'iPhone au lieu de la webcam</td><td>caméra de continuité insérée dans la liste des caméras</td><td>sélection par nom, menu au lancement, continuité désactivée en démo</td></tr>
+</table>
+
+<!-- ===================== 12. FABLAB ===================== -->
+<h1><span class="num">12</span>Fabrication numérique (Fablab)</h1>
+<div class="cols">
+<div>
+<h2>12.1 Boîtier imprimé en 3D (Fusion 360, Creality K2 Plus)</h2>
+<ul>
+  <li>Trois pièces : base avec plots pour le pack myDiL, face avant (fenêtre OLED, dôme PIR, LED, grilles buzzer et MQ-2, fentes DHT22, logement de la plaque gravée), couvercle vissé.</li>
+  <li>Parois 1,2 mm (3 lignes de buse 0,4 mm), PLA, couches 0,2 mm, remplissage 15 %, sans support grâce aux chanfreins à 45°.</li>
+  <li>Passe-câbles internes : aucun fil apparent, ouverture micro-USB accessible, arrivée 7,5 V par presse-étoupe.</li>
+  <li>Le MQ-2 est isolé du DHT22 : sa capsule chauffe à ≈ 50 °C.</li>
+</ul>
+<div class="todo">Photos du boîtier imprimé et assemblé à insérer après la finition de jeudi matin.</div>
+<h2>12.2 Plaque gravée au laser (Creality Falcon A1)</h2>
+<p>Plaque 80 × 50 mm, plexiglas ou contreplaqué 3 mm, fixée en face avant. Noir = gravure, rouge = découpe (contour arrondi, 4 trous M3). Contenu : logo AetherCorp, nom du produit, numéro de série <code>SX-G1-01</code>, pictogrammes de sécurité (7,5 V DC, ne pas ouvrir sous tension, surface chaude).</p>
+</div>
+<div><figure><img src="img/plaque.png" alt="Plaque gravée" style="border:1px solid #c9cdd3;border-radius:3px"><figcaption>Figure 6 — Fichier de gravure <code>fablab/plaque-gravure.svg</code>.</figcaption></figure></div>
+</div>
+
+<!-- ===================== 13. ANNEXE ===================== -->
+<h1><span class="num">13</span>Annexe — Index du dépôt</h1>
+<table>
+<tr><th style="width:30%">Chemin</th><th>Contenu</th></tr>
+<tr><td><code>README.md</code></td><td>démarrage rapide, structure, endpoints, sécurité, exploitation</td></tr>
+<tr><td><code>docker-compose.yml</code>, <code>.env.example</code></td><td>pile serveur et variables (jamais de secret commité)</td></tr>
+<tr><td><code>infra/</code></td><td>configuration Mosquitto, scripts bootstrap / certificats / mots de passe / base, schéma SQL exporté</td></tr>
+<tr><td><code>backend/</code></td><td>API FastAPI (modèles, schémas, pont MQTT, WebSocket, routes), Dockerfile, simulateur d'ESP</td></tr>
+<tr><td><code>firmware/</code></td><td>projet PlatformIO : <code>main.cpp</code>, <code>config.h</code>, <code>secrets.h.example</code>, Makefile, mode banc</td></tr>
+<tr><td><code>dashboard/</code></td><td>application React/TypeScript, configuration nginx, Dockerfile</td></tr>
+<tr><td><code>ai/</code></td><td><code>vision.py</code>, <code>predict.py</code>, <code>common.py</code>, dépendances</td></tr>
+<tr><td><code>docs/</code></td><td>contrat de données, architecture, câblage, boîtier, base de données, source de ce dossier</td></tr>
+<tr><td><code>fablab/</code></td><td>plaque de gravure SVG, exports CAO</td></tr>
+<tr><td><code>livrables/</code></td><td>dossier PDF, présentation, vidéo</td></tr>
+</table>
+<p class="small">Historique Git : commits sémantiques par brique (<code>feat(firmware)</code>, <code>feat(api)</code>, <code>feat(dashboard)</code>, <code>feat(ai)</code>, <code>docs</code>, <code>chore</code>), aucun secret ni fichier généré dans l'historique.</p>
+
+</body>
+</html>
