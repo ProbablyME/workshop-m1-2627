@@ -414,7 +414,7 @@ static void publishAlert(const char* type, bool on, float value, const char* sev
   doc["severity"]  = severity;
   publishJson("alerts", doc);
   Serial.printf("[alert] %s %s (%.1f) %s\n", type, on ? "ON" : "OFF", value, severity);
-  if (on && (!strcmp(severity, "critical") || !strcmp(type, "motion")))
+  if (on && strcmp(type, "sensor_fault") != 0)      // sirène sur toute alerte (gaz, température, humidité, PIR), sauf panne capteur
     buzzerAutoUntil = millis() + BUZZER_AUTO_MS;
 }
 
