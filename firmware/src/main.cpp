@@ -121,6 +121,17 @@ static void melodyTick(unsigned long now) {
 }
 
 bool oledOk = false;
+uint8_t oledAddr = OLED_ADDR;
+unsigned long oledProbeAt = 0;
+
+// Cherche l'écran aux adresses 0x3C puis 0x3D ; appelé au boot puis toutes les 10 s tant qu'il manque.
+static bool oledProbe() {
+  for (uint8_t a : {(uint8_t)0x3C, (uint8_t)0x3D}) {
+    Wire.beginTransmission(a);
+    if (Wire.endTransmission() == 0 && oled.begin(SSD1306_SWITCHCAPVCC, a)) { oledAddr = a; return true; }
+  }
+  return false;
+}
 float mq2R0 = 0;   // résistance du MQ-2 en air propre, calibrée après la chauffe
 float gasBase = -1;   // ligne de base du MQ-2 (valeur brute en air propre), fixée après la chauffe
 unsigned long tSensor = 0, tTelemetry = 0, tOled = 0, tMqttRetry = 0, bootMs = 0;
@@ -548,10 +559,11 @@ void setup() {
   dht.begin();
 
   Wire.begin(PIN_OLED_SDA, PIN_OLED_SCL);
-  oledOk = oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
+  oledOk = oledProbe();
   if (!oledOk) {
-    Serial.println("[oled] introuvable a 0x3C (verifier SDA=D2, SCL=D1, 3V, G)");
+    Serial.println("[oled] introuvable en 0x3C/0x3D (verifier SDA=D2, SCL=D1, 3V, G) : nouvel essai toutes les 10 s");
   } else {
+    Serial.printf("[oled] detecte a 0x%02X\n", oledAddr);
     oled.clearDisplay();
     oled.drawBitmap(56, 8, ICON_SHIELD, 16, 16, SSD1306_WHITE);
     oled.setTextSize(2);
@@ -623,6 +635,10 @@ void loop() {
 #else
     if (mqtt.connected()) publishTelemetry();
 #endif
+  }
+  if (!oledOk && now - oledProbeAt >= 10000) {        // écran branché après coup, ou fil remis en place
+    oledProbeAt = now;
+    if ((oledOk = oledProbe())) Serial.printf("[oled] detecte a 0x%02X (branchement tardif)\n", oledAddr);
   }
   if (now - tOled >= OLED_PERIOD_MS) {
     tOled = now;
