@@ -76,17 +76,15 @@ struct Actuator {
 Actuator buzzer{PIN_BUZZER}, ledR{PIN_LED_RED}, ledG{PIN_LED_GREEN};
 unsigned long buzzerAutoUntil = 0;
 
-// ---- Mélodie d'alarme : sonnerie d'appel Skype (transcription), note répétée + note haute qui monte puis redescend ----
-// Triplets (fréquence Hz, créneau ms, durée sonnée ms) ; 43 notes, 6.9 s. MELODY_SPEED_PCT dans config.h.
+// ---- Mélodie d'alarme : sonnerie d'appel Skype, transcrite de l'enregistrement original (archive.org,
+// analyse spectrale) et croisée avec la partition 2 mesures (flat.io) : glissando montant, Mib Sib Mib (Solb Reb)
+// | Sib Re Sib (Lab Sib Sib) Mib. Jouée une octave au-dessus (buzzer plus sonore). Une boucle = 3.64 s,
+// rejouée tant que la sirène est active. Triplets (fréquence Hz, créneau ms, durée sonnée ms). ----
 static const uint16_t MELODY[] PROGMEM = {
-  587,150,115, 587,150,115, 587,150,115, 587,150,115, 659,150,115, 587,150,115,
-  587,150,115, 587,150,115, 587,150,115, 587,150,115, 740,150,115, 587,150,115,
-  587,150,115, 587,150,115, 587,150,115, 587,150,115, 784,150,115, 587,150,115,
-  587,150,115, 587,150,115, 587,150,115, 587,150,115, 880,150,115, 587,150,115,
-  587,150,115, 587,150,115, 587,150,115, 587,150,115, 784,150,115, 587,150,115,
-  587,150,115, 587,150,115, 587,150,115, 587,150,115, 740,150,115, 587,150,115,
-  587,150,115, 587,150,115, 587,150,115, 587,150,115, 659,150,115, 587,150,115,
-  0,600,20 };
+  415,18,18, 440,18,18, 466,18,18, 494,18,18, 523,18,18,
+  554,18,18, 587,18,18, 622,330,300, 932,420,380, 622,330,150,
+  698,40,40, 740,250,110, 1109,450,90, 932,470,420, 587,310,280,
+  932,350,150, 1661,60,55, 932,80,60, 932,190,70, 622,230,200 };
 static const uint8_t MELODY_LEN = sizeof(MELODY) / sizeof(MELODY[0]) / 3;   // nombre de notes
 
 struct Melody {
