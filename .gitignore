@@ -43,3 +43,6 @@ ai/cams/
 
 # Signatures faciales (données biométriques, jamais commitées)
 ai/faces/*.npy
+
+# Surcharge Docker locale (expose la base en dev)
+docker-compose.override.yml

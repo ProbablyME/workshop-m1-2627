@@ -1,0 +1,7 @@
+# Surcharge de développement : expose PostgreSQL sur le Mac uniquement (127.0.0.1), pour un client
+# graphique (DataGrip, DBeaver, TablePlus). Copier en docker-compose.override.yml (ignoré par Git) ;
+# Docker Compose le charge automatiquement. À supprimer avant le pentest.
+services:
+  db:
+    ports:
+      - "127.0.0.1:${DB_PORT:-5434}:5432"

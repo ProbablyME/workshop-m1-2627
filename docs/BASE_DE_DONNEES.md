@@ -35,9 +35,11 @@ La base n'expose aucun port sur le laptop (choix de sécurité) : on y entre par
 ./infra/scripts/db-shell.sh -c "SELECT count(*) FROM telemetry;"
 ```
 
-Pour un client graphique (DBeaver, pgAdmin, TablePlus), exposer temporairement le port en
-ajoutant `ports: ["127.0.0.1:5432:5432"]` au service `db` du `docker-compose.yml`, puis
-`docker compose up -d db`. Identifiants dans `.env` (`POSTGRES_*`). À retirer avant le pentest.
+Pour un client graphique (DataGrip, DBeaver, TablePlus) : copier `docker-compose.override.example.yml`
+en `docker-compose.override.yml` (ignoré par Git, chargé automatiquement), puis `docker compose up -d db`.
+La base est alors joignable sur `127.0.0.1`, port `DB_PORT` du `.env` (5434 par défaut, le 5432 étant
+souvent pris par un autre projet), base `sentinelx`, utilisateur et mot de passe `POSTGRES_*` du `.env`.
+Seul le Mac y accède, pas le Wi-Fi de table. Supprimer le fichier de surcharge avant le pentest.
 
 ## Requêtes utiles
 
