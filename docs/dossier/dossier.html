@@ -184,6 +184,7 @@ artificielle, la webcam USB étant branchée directement dessus.</p>
 <tr><td>5432</td><td>PostgreSQL</td><td>personne (réseau Docker interne)</td><td>pas de port publié sur l'hôte</td></tr>
 </table>
 <div class="note">Au test de bout en bout du 5 octobre, le boîtier a rejoint le réseau en 2 s, établi la session TLS avec le serveur et maintenu un signal de −46 dBm. Après une mise en veille du serveur de 98 minutes, il s'est reconnecté seul sans intervention : le <i>Last Will</i> MQTT a marqué le boîtier hors ligne, puis en ligne au retour.</div>
+<div class="note">Le réseau de table isolé ci-dessus est la cible. Faute de routeur dédié disponible pendant le sprint, la démonstration tourne sur un hotspot Wi-Fi partagé avec les autres groupes : le serveur reçoit son IP par DHCP et l'épinglage du certificat sur le boîtier reste valide car il porte sur l'empreinte, pas sur l'adresse. Ce repli renforce même la démonstration : le lien boîtier → serveur est chiffré de bout en bout alors même que d'autres tables partagent le même segment. L'isolation réseau reste un point de durcissement (§ 9.3).</div>
 
 <!-- ===================== 4. ÉLECTRONIQUE ===================== -->
 <h1><span class="num">4</span>Électronique : composants et schéma de câblage</h1>
@@ -424,6 +425,7 @@ mais signale ce qui ne ressemble pas au passé récent. Les seuils réflexe du b
 <tr><td>Dashboard et API en HTTP sur le réseau de table</td><td>Mot de passe transmis en clair : restreindre l'accès au seul laptop ou passer en HTTPS avec la CA locale</td><td>—</td><td class="status-todo">jeudi matin</td></tr>
 <tr><td>Compromission de l'hôte (laptop)</td><td>Pare-feu entrant, SSH par clés uniquement, Docker sans exposition du socket, mises à jour</td><td>—</td><td class="status-todo">jeudi matin (filière CYBER)</td></tr>
 <tr><td>Vol physique du boîtier</td><td>Identifiants Wi-Fi et MQTT lisibles dans la flash</td><td>risque résiduel accepté : rotation du mot de passe MQTT si le boîtier disparaît</td><td>résiduel</td></tr>
+<tr><td>Intrusion non détectée pendant le pentest</td><td>Détection en direct : <code>infra/scripts/watch-attacks.sh</code> signale les connexions d'IP non reconnues (vraie IP par <code>lsof</code>, hors masquage Docker), les échecs d'authentification HTTP (401/403) et MQTT, et les scans de chemins sensibles</td><td>Démonstration : un <code>curl</code> depuis un autre poste déclenche une ligne rouge <i>CONNEXION INCONNUE</i> et <i>AUTH REFUSEE</i></td><td class="status-ok">en place</td></tr>
 </table>
 
 <h2>9.2 Preuve du chiffrement</h2>
@@ -494,6 +496,7 @@ cd ai && .venv/bin/python predict.py            # maintenance prédictive</pre>
 </ul>
 <h2>11.3 Surveillance de la machine hôte</h2>
 <p><code>docker stats</code> pour CPU/RAM des conteneurs ; journaux Mosquitto persistés dans un volume avec rotation implicite par taille de file ; <code>docker compose logs -f api</code> pour les payloads rejetés. En cas de redémarrage de l'hôte, <code>restart: unless-stopped</code> relance la pile.</p>
+<p>Pendant la journée pentest, <code>infra/scripts/watch-attacks.sh</code> tourne dans un terminal : il agrège les journaux des trois services et les connexions réelles aux ports exposés, puis surligne en direct les tentatives (connexion d'une IP inconnue, authentification refusée, scan de chemins sensibles). Le trafic du Mac, du boîtier et des conteneurs est filtré ; un résumé chiffré s'affiche à l'arrêt. L'outil est en lecture seule et ne modifie aucune configuration.</p>
 <h2>11.4 Incidents rencontrés et résolus</h2>
 <table>
 <tr><th style="width:34%">Symptôme</th><th>Cause</th><th>Résolution</th></tr>

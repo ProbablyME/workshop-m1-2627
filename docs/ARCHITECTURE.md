@@ -1,6 +1,6 @@
 # Architecture Sentinel-X — Groupe 1 (option B)
 
-À faire valider par les coachs lundi. Les choix ci-dessous sont figés pour le sprint.
+Choix validés par les coachs, figés pour le sprint.
 
 ## 1. Vue d'ensemble
 
@@ -39,29 +39,30 @@ flowchart LR
 
 ## 2. Réseau de table
 
-| Élément                 | Valeur                                   |
-|-------------------------|------------------------------------------|
-| Sous-réseau             | `192.168.10.0/24`                        |
-| Point d'accès Wi-Fi     | laptop serveur (hotspot) ou routeur dédié, SSID `SENTINEL-G1`, WPA2 |
-| Serveur (API, broker)   | `192.168.10.1` (statique)                |
-| ESP8266                 | `192.168.10.50` (réservation DHCP ou IP statique dans le firmware) |
-| Postes des apprenants   | `192.168.10.100-199` (DHCP)              |
-| Isolation               | pas de routage vers les autres tables ; seul le serveur a accès Internet si besoin |
+Cible : réseau de table isolé, SSID `SENTINEL-G1`, WPA2, 2,4 GHz, serveur en `192.168.10.1` statique. Faute de routeur dédié pendant le sprint, la démonstration tourne sur un **hotspot Wi-Fi partagé** : le serveur reçoit son IP par DHCP (p. ex. `192.168.137.53`) et l'ESP la sienne (p. ex. `192.168.137.244`). L'épinglage du certificat sur l'ESP porte sur l'empreinte, pas sur l'IP, donc le changement d'adresse n'affecte pas la connexion TLS. Seuls le SSID, le mot de passe et `MQTT_HOST` (IP du serveur) sont à mettre à jour dans `firmware/include/secrets.h` puis reflasher.
 
-Ports exposés sur le serveur (à aligner avec UFW au durcissement) :
+| Élément                 | Valeur (démo sur hotspot)                |
+|-------------------------|------------------------------------------|
+| Serveur (API, broker)   | IP DHCP du laptop, reportée dans `MQTT_HOST` |
+| ESP8266                 | IP DHCP, client MQTTS uniquement         |
+| Postes du groupe / jury | même hotspot, dashboard par mot de passe |
+
+Ports exposés sur le serveur (à aligner au durcissement) :
 
 | Port  | Service                   | Ouvert à                      |
 |-------|---------------------------|-------------------------------|
 | 8883  | MQTTS                     | ESP8266, scripts IA           |
-| 1883  | MQTT clair (debug)        | localhost uniquement, fermé jeudi |
-| 8000  | API REST + WebSocket      | postes du groupe              |
+| 1883  | MQTT clair (debug)        | localhost uniquement, à fermer au durcissement |
+| 8000 (→ 8010 sur l'hôte) | API REST + WebSocket   | postes du groupe              |
 | 8080  | Dashboard (nginx, auth basic) | postes du groupe / jury   |
 | 22    | SSH (clés uniquement)     | postes du groupe              |
+
+Détection en direct pendant le pentest : `infra/scripts/watch-attacks.sh` surligne les connexions d'IP inconnues, les échecs d'authentification HTTP/MQTT et les scans de chemins. Lecture seule.
 
 ## 3. Flux de données
 
 1. L'ESP lit les capteurs toutes les 2 s, publie une télémétrie toutes les 5 s et une alerte à chaque franchissement de seuil local.
-2. Mosquitto authentifie l'ESP (login/mot de passe) sur une session TLS vérifiée côté ESP (CA locale).
+2. Mosquitto authentifie l'ESP (login/mot de passe, anonyme refusé) sur une session TLS que l'ESP vérifie par l'empreinte du certificat serveur (épinglage ; variante par CA locale disponible).
 3. L'API s'abonne à `sentinel/g1/#`, persiste en base et pousse immédiatement l'événement aux dashboards connectés en WebSocket.
 4. Le superviseur déclenche buzzer/LED depuis le dashboard : `POST /commands` → publication MQTT `sentinel/g1/cmd` → ESP.
 5. Le script de vision lit la webcam (640x480), infère, et pousse chaque détection de personne à l'API.
