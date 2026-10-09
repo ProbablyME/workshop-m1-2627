@@ -10,6 +10,7 @@ l'IA de vision sur webcam USB.
 
 ```
                  Wi-Fi (sous-réseau de table 192.168.10.0/24)
+                 (cible ; en démo, repli possible sur un hotspot partagé : seul MQTT_HOST change dans secrets.h)
 ┌────────────────────┐   MQTTS 8883 (TLS)   ┌──────────────────────────────────────────┐
 │  Boîtier SENTINEL-X│ ───────────────────► │  PC Serveur Local (laptop)               │
 │  ESP8266 NodeMCU   │ ◄─────────────────── │  ┌────────────┐  ┌──────┐  ┌──────────┐  │
