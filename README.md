@@ -157,5 +157,6 @@ Les écritures exigent l'en-tête `X-API-Key` (valeur `API_KEY` du `.env`).
 ## Équipe & conventions
 
 - Groupe 1 — livrables nommés `Workshop2026-M1-G1-*`.
+- Membres : Leo PIRONTI, Khalid FILALI, Ethan BREUZARD, Antoine LACHAUX, Lucas MATTERA, Cyprien BROCHE.
 - Commits sémantiques : `feat(firmware): …`, `fix(api): …`, `docs: …`, `infra: …`.
 - Toute modification d'interface passe d'abord par `docs/CONTRAT_DONNEES.md`.
